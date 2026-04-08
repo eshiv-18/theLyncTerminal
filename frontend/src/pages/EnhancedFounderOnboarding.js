@@ -40,7 +40,8 @@ import {
   BarChart3,
   Share2,
   FileText,
-  Sparkles
+  Sparkles,
+  X
 } from 'lucide-react';
 import { BUSINESS_MODELS, STAGES } from '@/data/mockData';
 import { toast } from 'sonner';
@@ -50,26 +51,30 @@ const EnhancedFounderOnboarding = () => {
   const [step, setStep] = useState(1);
   const totalSteps = 10;
   
+  // Temporary state for team member input
+  const [teamEmail, setTeamEmail] = useState('');
+  const [teamRole, setTeamRole] = useState('editor');
+  
   const [formData, setFormData] = useState({
     // Step 1: Invitation
     invitedBy: 'StartupTN',
-    companyName: 'Your Startup',
+    companyName: 'TechFlow AI',
     role: 'Founder Admin',
     
     // Step 2: Trust & Consent
     understoodDataSharing: false,
     reviewedVisibility: false,
     
-    // Step 3: Company Details
-    website: '',
-    sector: '',
-    stage: '',
-    businessModel: '',
-    hq: '',
-    founders: '',
-    contactEmail: '',
-    reportingOwner: '',
-    financeOwner: '',
+    // Step 3: Company Details (Pre-populated from admin invitation)
+    website: 'https://techflow.ai',
+    sector: 'Enterprise AI',
+    stage: 'Seed',
+    businessModel: 'B2B SaaS',
+    hq: 'San Francisco, CA',
+    founders: 'Alex Thompson, Sarah Kim',
+    contactEmail: 'alex@techflow.ai',
+    reportingOwner: 'Alex Thompson',
+    financeOwner: 'Sarah Kim',
     reportingCadence: 'monthly',
     
     // Step 4: Team Invites
@@ -159,6 +164,44 @@ const EnhancedFounderOnboarding = () => {
     const newMappings = [...formData.metricMappings];
     newMappings[index].approved = !newMappings[index].approved;
     setFormData(prev => ({ ...prev, metricMappings: newMappings }));
+  };
+
+  const handleAddTeamMember = () => {
+    if (!teamEmail || !teamEmail.includes('@')) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    
+    // Check if email already exists
+    if (formData.teamMembers.some(member => member.email === teamEmail)) {
+      toast.error('This email is already invited');
+      return;
+    }
+    
+    const newMember = {
+      email: teamEmail,
+      role: teamRole,
+      id: Date.now()
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      teamMembers: [...prev.teamMembers, newMember]
+    }));
+    
+    toast.success(`Invitation sent to ${teamEmail}`);
+    
+    // Reset inputs
+    setTeamEmail('');
+    setTeamRole('editor');
+  };
+
+  const handleRemoveTeamMember = (id) => {
+    setFormData(prev => ({
+      ...prev,
+      teamMembers: prev.teamMembers.filter(member => member.id !== id)
+    }));
+    toast.success('Team member removed');
   };
 
   return (
@@ -427,11 +470,32 @@ const EnhancedFounderOnboarding = () => {
                     <div>
                       <h3 className="text-lg font-semibold mb-2">Confirm Company Details</h3>
                       <p className="text-sm text-muted-foreground">
-                        Verify and complete your company information
+                        Review the information provided by {formData.invitedBy}. You can edit any field if needed.
                       </p>
                     </div>
                     
+                    <div className="bg-primary/10 rounded-lg p-4 flex items-start gap-3 mb-4">
+                      <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">Pre-filled by your investor</p>
+                        <p className="text-xs text-muted-foreground">
+                          These details were added when you were invited. Please review and update if needed.
+                        </p>
+                      </div>
+                    </div>
+                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="companyName">Company Name</Label>
+                        <Input
+                          id="companyName"
+                          placeholder="Your Company"
+                          value={formData.companyName}
+                          onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
+                          className="mt-2"
+                        />
+                      </div>
+                      
                       <div>
                         <Label htmlFor="website">Website</Label>
                         <Input
@@ -451,6 +515,17 @@ const EnhancedFounderOnboarding = () => {
                           placeholder="e.g., FinTech"
                           value={formData.sector}
                           onChange={(e) => setFormData(prev => ({ ...prev, sector: e.target.value }))}
+                          className="mt-2"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="hq">Headquarters</Label>
+                        <Input
+                          id="hq"
+                          placeholder="e.g., San Francisco, CA"
+                          value={formData.hq}
+                          onChange={(e) => setFormData(prev => ({ ...prev, hq: e.target.value }))}
                           className="mt-2"
                         />
                       </div>
@@ -484,12 +559,46 @@ const EnhancedFounderOnboarding = () => {
                       </div>
                       
                       <div>
+                        <Label htmlFor="founders">Founders</Label>
+                        <Input
+                          id="founders"
+                          placeholder="e.g., John Doe, Jane Smith"
+                          value={formData.founders}
+                          onChange={(e) => setFormData(prev => ({ ...prev, founders: e.target.value }))}
+                          className="mt-2"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="contactEmail">Contact Email</Label>
+                        <Input
+                          id="contactEmail"
+                          type="email"
+                          placeholder="contact@company.com"
+                          value={formData.contactEmail}
+                          onChange={(e) => setFormData(prev => ({ ...prev, contactEmail: e.target.value }))}
+                          className="mt-2"
+                        />
+                      </div>
+                      
+                      <div>
                         <Label htmlFor="reportingOwner">Reporting Owner</Label>
                         <Input
                           id="reportingOwner"
                           placeholder="Name"
                           value={formData.reportingOwner}
                           onChange={(e) => setFormData(prev => ({ ...prev, reportingOwner: e.target.value }))}
+                          className="mt-2"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="financeOwner">Finance Owner</Label>
+                        <Input
+                          id="financeOwner"
+                          placeholder="Name"
+                          value={formData.financeOwner}
+                          onChange={(e) => setFormData(prev => ({ ...prev, financeOwner: e.target.value }))}
                           className="mt-2"
                         />
                       </div>
@@ -725,12 +834,14 @@ const EnhancedFounderOnboarding = () => {
                             id="teamEmail"
                             type="email"
                             placeholder="colleague@company.com"
+                            value={teamEmail}
+                            onChange={(e) => setTeamEmail(e.target.value)}
                             className="mt-2"
                           />
                         </div>
                         <div>
                           <Label htmlFor="teamRole">Role</Label>
-                          <Select>
+                          <Select value={teamRole} onValueChange={setTeamRole}>
                             <SelectTrigger className="mt-2" id="teamRole">
                               <SelectValue placeholder="Select role" />
                             </SelectTrigger>
@@ -743,17 +854,42 @@ const EnhancedFounderOnboarding = () => {
                         </div>
                       </div>
                       
-                      <Button variant="outline" className="w-full">
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={handleAddTeamMember}
+                        type="button"
+                      >
                         <Users className="h-4 w-4 mr-2" />
                         Add Team Member
                       </Button>
                       
                       {formData.teamMembers.length > 0 ? (
                         <Card>
-                          <CardContent className="p-4">
-                            <p className="text-sm text-muted-foreground">
+                          <CardContent className="p-4 space-y-3">
+                            <p className="text-sm font-medium">
                               {formData.teamMembers.length} team member(s) invited
                             </p>
+                            <div className="space-y-2">
+                              {formData.teamMembers.map((member) => (
+                                <div 
+                                  key={member.id}
+                                  className="flex items-center justify-between p-3 border rounded-lg bg-background"
+                                >
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium">{member.email}</p>
+                                    <p className="text-xs text-muted-foreground capitalize">{member.role}</p>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRemoveTeamMember(member.id)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
                           </CardContent>
                         </Card>
                       ) : (
