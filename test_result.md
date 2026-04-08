@@ -265,18 +265,30 @@ frontend:
           agent: "testing"
           comment: "✓ PASS: Automated Reporting Engine fully tested and working. Navigation from /reports to report detail page works correctly. Report header displays Type (Monthly Report), Status badge (Submitted in blue), Version (Version 1), startup logo and name, period (April 2026). Audit metadata bar complete with Last Sync (Just now), Data Freshness (95%), Sources (Zoho Books, HubSpot, Jira), Auto-Generated badge, and Submitted timestamp. Current Report and Version History tabs present and functional. Current Report tab contains all required sections: (1) Executive Summary with full paragraph text, (2) KPI Scorecard with 5 cards (Revenue $3.5M ↑10%, Growth Rate 26.3% ↑3%, Burn $1.5M ↓5%, Runway 23.2 ↑1%, Headcount 38.0 ↑2%) each with trend icons and vs previous values, (3) What Changed Materially with 5 bullet points with checkmarks, (4) Financial Summary grid with Revenue ($3.2M), Revenue Growth (+32.5%), Net Burn ($-445K), Cash Balance ($37.0M), Runway (72.9 months), Collections (On track - 95% of invoices collected within 30 days), (5) GTM Summary conditionally displayed for SaaS startups with 7 metrics (not shown for non-SaaS startup - expected behavior), (6) Product & Execution Summary with 4 metrics (Releases Shipped: 2, Features Deployed: 12, Critical Bugs: 3, Uptime: 99.8%) plus engagement text (DAU increased 12% with new feature adoption at 65%), (7) Risks and Asks displayed as two side-by-side cards with 2 risks (Sales pipeline velocity, Engineering capacity) and 3 numbered asks, (8) Founder Note with italicized quote text, (9) Investor Comments section with existing comment from Sarah Chen (Partner), textarea placeholder 'Add a comment or question...', and Add Comment button. Export PDF and Finalize Report buttons present in header. Version History tab displays current version (v1) with Submitted status badge and previous version (v0) with Finalized status badge. All requirements met."
 
+  - task: "Admin Onboarding - Portfolio Company Input Fields"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/AdminOnboarding.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✓ PASS: All 16 test steps completed successfully. Step 1 (Welcome Form): Organization Name, Your Name, Work Email fields accept input correctly, Primary Use Case 'VC Fund' radio button selection works. Step 2 (Investment Stages): Seed, Series A, Series B checkboxes all selectable and checked correctly. Step 3 (Team Setup): Navigation works, skipped as expected. Step 4 (Portfolio Companies): 'Import Portfolio Companies' heading visible, 'Add Company' button creates new table rows successfully. Company Name input accepts text ('Test Startup Inc' entered and displayed). Sector input accepts text ('FinTech' entered and displayed). Stage dropdown opens correctly and displays only the stages selected in Step 2 (Seed, Series A, Series B) - verified in screenshot. Stage dropdown allows selection ('Series A' selected successfully and displayed). Founder Email input accepts text ('founder@teststartup.com' entered and displayed). Multiple companies can be added (2 companies added successfully, both visible in table). Remove button (trash icon) deletes companies correctly (reduced from 2 companies to 1 company). All input fields properly handle user input with correct state management. No page errors or console errors detected. All functionality working as expected."
+
 metadata:
   created_by: "testing_agent"
-  version: "1.2"
-  test_sequence: 3
+  version: "1.3"
+  test_sequence: 4
   run_ui: true
   last_tested: "2026-04-08"
 
 test_plan:
   current_focus:
-    - "All features tested and working including Enhanced Live Feed and Automated Reporting Engine"
+    - "Admin Onboarding - Portfolio Company Input Fields (Bug Fix Verification)"
   stuck_tasks: []
-  test_all: true
+  test_all: false
   test_priority: "completed"
 
 agent_communication:
@@ -286,3 +298,5 @@ agent_communication:
       message: "Enhanced platform testing completed for 5 new features. Tests 1 (Reports Archive) and 2 (Live Feed) fully passed with all functionality working. Tests 3 (Admin Dashboard), 4 (Founder Onboarding), and 5 (Enhanced Navigation) have minor Playwright selector issues with user menu dropdown, but core functionality is confirmed working through partial test execution and visual verification. All new pages render correctly with proper data display, navigation works, and UI components are functional."
     - agent: "testing"
       message: "Enhanced Live Feed and Automated Reporting Engine testing completed successfully. TEST 1 (Enhanced Live Feed): All features working - 4 summary cards with real-time counts, 5 filter tabs (All, Critical, Warning, Alerts, Unacknowledged), activity items with complete information (startup logo/name, alert title, severity badge, summary, source system, affected metric, timestamp), startup name navigation to detail page, acknowledge button with toast notification, and 12 alert categories displayed at bottom. TEST 2 (Report Detail Page): Complete automated reporting engine working - report header with type/status/version, audit metadata bar with data freshness and sources, tabbed interface (Current Report/Version History), all report sections present (Executive Summary, KPI Scorecard with 5 cards and trend indicators, Material Changes with 5 bullets, Financial Summary with 7 metrics, GTM Summary for SaaS, Product & Execution with 4 metrics, Risks and Asks side-by-side, Founder Note italicized, Investor Comments with textarea and button), Export PDF and Finalize Report buttons functional. TEST 3 (Version History): Tab displays current (v1) and previous (v0) versions with status badges. All requirements met and verified through visual inspection of screenshots."
+    - agent: "testing"
+      message: "Admin Onboarding Portfolio Company Input Fields bug fix verification completed successfully. All 16 test steps passed. Tested complete flow from Step 1 (Welcome form with org name, user name, email, use case selection) through Step 2 (Investment stages selection: Seed, Series A, Series B) to Step 4 (Portfolio Companies). All input fields working correctly: Company Name input accepts and displays text, Sector input accepts and displays text, Stage dropdown correctly shows only the stages selected in Step 2 (Seed, Series A, Series B) and allows selection, Founder Email input accepts and displays text. Add Company button creates new table rows successfully. Multiple companies can be added (tested with 2 companies). Remove button (trash icon) deletes companies correctly. All state management working properly with no console or page errors. Bug fix verified as successful."

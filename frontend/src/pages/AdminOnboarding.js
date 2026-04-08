@@ -558,19 +558,56 @@ const AdminOnboarding = () => {
                                     value={company.name}
                                     placeholder="Company name"
                                     className="h-8"
+                                    onChange={(e) => {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        companies: prev.companies.map(c =>
+                                          c.id === company.id ? { ...c, name: e.target.value } : c
+                                        )
+                                      }));
+                                    }}
                                   />
                                 </TableCell>
                                 <TableCell>
-                                  <Input value={company.sector} placeholder="Sector" className="h-8" />
+                                  <Input 
+                                    value={company.sector} 
+                                    placeholder="Sector" 
+                                    className="h-8"
+                                    onChange={(e) => {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        companies: prev.companies.map(c =>
+                                          c.id === company.id ? { ...c, sector: e.target.value } : c
+                                        )
+                                      }));
+                                    }}
+                                  />
                                 </TableCell>
                                 <TableCell>
-                                  <Select value={company.stage}>
+                                  <Select 
+                                    value={company.stage}
+                                    onValueChange={(value) => {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        companies: prev.companies.map(c =>
+                                          c.id === company.id ? { ...c, stage: value } : c
+                                        )
+                                      }));
+                                    }}
+                                  >
                                     <SelectTrigger className="h-8">
                                       <SelectValue placeholder="Stage" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="seed">Seed</SelectItem>
-                                      <SelectItem value="series-a">Series A</SelectItem>
+                                      {formData.investmentStages.length > 0 ? (
+                                        formData.investmentStages.map(stage => (
+                                          <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+                                        ))
+                                      ) : (
+                                        <SelectItem value="not-set" disabled>
+                                          Select stages in Step 2 first
+                                        </SelectItem>
+                                      )}
                                     </SelectContent>
                                   </Select>
                                 </TableCell>
@@ -580,10 +617,27 @@ const AdminOnboarding = () => {
                                     value={company.founderEmail}
                                     placeholder="founder@startup.com"
                                     className="h-8"
+                                    onChange={(e) => {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        companies: prev.companies.map(c =>
+                                          c.id === company.id ? { ...c, founderEmail: e.target.value } : c
+                                        )
+                                      }));
+                                    }}
                                   />
                                 </TableCell>
                                 <TableCell>
-                                  <Button variant="ghost" size="sm">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        companies: prev.companies.filter(c => c.id !== company.id)
+                                      }));
+                                    }}
+                                  >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </TableCell>
