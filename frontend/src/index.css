@@ -1,0 +1,218 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'tnum' on, 'lnum' on;
+}
+
+code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+@layer base {
+    :root {
+        /* Modern Analytics Platform - Light Mode */
+        --background: 210 20% 98%;
+        --foreground: 215 25% 15%;
+        
+        --card: 0 0% 100%;
+        --card-foreground: 215 25% 15%;
+        
+        --popover: 0 0% 100%;
+        --popover-foreground: 215 25% 15%;
+        
+        /* Primary: Professional Indigo for actions and focus */
+        --primary: 239 70% 58%;
+        --primary-foreground: 0 0% 100%;
+        --primary-subtle: 239 60% 95%;
+        
+        /* Secondary: Muted slate for supporting elements */
+        --secondary: 215 15% 92%;
+        --secondary-foreground: 215 25% 20%;
+        
+        --muted: 215 15% 95%;
+        --muted-foreground: 215 15% 45%;
+        
+        --accent: 239 60% 96%;
+        --accent-foreground: 239 70% 40%;
+        
+        /* Semantic Colors */
+        --success: 142 76% 36%;
+        --success-foreground: 0 0% 100%;
+        --success-subtle: 142 60% 95%;
+        
+        --warning: 38 92% 50%;
+        --warning-foreground: 0 0% 100%;
+        --warning-subtle: 38 100% 95%;
+        
+        --destructive: 0 84% 60%;
+        --destructive-foreground: 0 0% 100%;
+        --destructive-subtle: 0 100% 97%;
+        
+        --border: 215 15% 88%;
+        --input: 215 15% 88%;
+        --ring: 239 70% 58%;
+        
+        /* Chart colors - distinct and accessible */
+        --chart-1: 239 70% 58%;
+        --chart-2: 142 76% 40%;
+        --chart-3: 38 92% 50%;
+        --chart-4: 280 65% 58%;
+        --chart-5: 199 89% 48%;
+        --chart-6: 0 84% 60%;
+        --chart-neutral: 215 15% 70%;
+        
+        /* Custom tokens for dashboard */
+        --sidebar: 215 20% 97%;
+        --sidebar-foreground: 215 25% 20%;
+        
+        --health-good: 142 76% 36%;
+        --health-warning: 38 92% 50%;
+        --health-critical: 0 84% 60%;
+        
+        /* Subtle elevation */
+        --shadow-sm: 0 1px 2px 0 hsl(215 25% 15% / 0.05);
+        --shadow-md: 0 4px 6px -1px hsl(215 25% 15% / 0.07), 0 2px 4px -1px hsl(215 25% 15% / 0.06);
+        --shadow-lg: 0 10px 15px -3px hsl(215 25% 15% / 0.08), 0 4px 6px -2px hsl(215 25% 15% / 0.05);
+        
+        --radius: 0.5rem;
+        --transition-smooth: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .dark {
+        /* Modern Analytics Platform - Dark Mode */
+        --background: 215 28% 8%;
+        --foreground: 210 20% 95%;
+        
+        --card: 215 25% 11%;
+        --card-foreground: 210 20% 95%;
+        
+        --popover: 215 25% 11%;
+        --popover-foreground: 210 20% 95%;
+        
+        --primary: 239 75% 65%;
+        --primary-foreground: 215 28% 8%;
+        --primary-subtle: 239 50% 15%;
+        
+        --secondary: 215 20% 18%;
+        --secondary-foreground: 210 20% 90%;
+        
+        --muted: 215 20% 16%;
+        --muted-foreground: 215 15% 60%;
+        
+        --accent: 239 50% 20%;
+        --accent-foreground: 239 75% 75%;
+        
+        --success: 142 70% 45%;
+        --success-foreground: 215 28% 8%;
+        --success-subtle: 142 50% 12%;
+        
+        --warning: 38 90% 55%;
+        --warning-foreground: 215 28% 8%;
+        --warning-subtle: 38 70% 15%;
+        
+        --destructive: 0 80% 65%;
+        --destructive-foreground: 215 28% 8%;
+        --destructive-subtle: 0 60% 15%;
+        
+        --border: 215 20% 22%;
+        --input: 215 20% 22%;
+        --ring: 239 75% 65%;
+        
+        --chart-1: 239 75% 65%;
+        --chart-2: 142 70% 50%;
+        --chart-3: 38 90% 60%;
+        --chart-4: 280 70% 65%;
+        --chart-5: 199 89% 58%;
+        --chart-6: 0 80% 65%;
+        --chart-neutral: 215 15% 50%;
+        
+        --sidebar: 215 25% 10%;
+        --sidebar-foreground: 210 20% 90%;
+        
+        --health-good: 142 70% 45%;
+        --health-warning: 38 90% 55%;
+        --health-critical: 0 80% 65%;
+        
+        --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
+        --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -1px hsl(0 0% 0% / 0.3);
+        --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.5), 0 4px 6px -2px hsl(0 0% 0% / 0.4);
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+    
+    /* Custom scrollbar for modern look */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        @apply bg-muted/30;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        @apply bg-muted-foreground/30 rounded-full;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        @apply bg-muted-foreground/50;
+    }
+}
+
+/* Utility classes for data tables */
+@layer utilities {
+    .tabular-nums {
+        font-feature-settings: 'tnum' on, 'lnum' on;
+    }
+    
+    .transition-smooth {
+        transition: var(--transition-smooth);
+    }
+}
+
+@layer base {
+    [data-debug-wrapper="true"] {
+        display: contents !important;
+    }
+
+    [data-debug-wrapper="true"] > * {
+        margin-left: inherit;
+        margin-right: inherit;
+        margin-top: inherit;
+        margin-bottom: inherit;
+        padding-left: inherit;
+        padding-right: inherit;
+        padding-top: inherit;
+        padding-bottom: inherit;
+        column-gap: inherit;
+        row-gap: inherit;
+        gap: inherit;
+        border-left-width: inherit;
+        border-right-width: inherit;
+        border-top-width: inherit;
+        border-bottom-width: inherit;
+        border-left-style: inherit;
+        border-right-style: inherit;
+        border-top-style: inherit;
+        border-bottom-style: inherit;
+        border-left-color: inherit;
+        border-right-color: inherit;
+        border-top-color: inherit;
+        border-bottom-color: inherit;
+    }
+}
