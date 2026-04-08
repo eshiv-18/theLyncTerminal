@@ -289,32 +289,180 @@ export const mockUsers = [
   }
 ];
 
-// Activity feed
+// Enhanced Alert Categories
+export const ALERT_CATEGORIES = {
+  REPORTING_LATE: 'reporting_late',
+  DATA_STALE: 'data_stale',
+  CASH_LOW: 'cash_below_threshold',
+  RUNWAY_LOW: 'runway_below_threshold',
+  BURN_SPIKE: 'burn_spike',
+  REVENUE_SLOW: 'revenue_slowdown',
+  CHURN_HIGH: 'churn_increase',
+  PIPELINE_LOW: 'pipeline_deterioration',
+  SPRINT_MISS: 'sprint_miss',
+  RELEASE_SLOW: 'release_cadence_decline',
+  INTEGRATION_BROKEN: 'integration_broken',
+  URGENT_COMMENT: 'founder_comment_urgent'
+};
+
+// Activity feed with detailed structure
 export function generateActivityFeed() {
   const activities = [];
-  const types = [
-    { type: 'report_submitted', icon: 'FileText', color: 'text-primary' },
-    { type: 'alert_triggered', icon: 'AlertTriangle', color: 'text-warning' },
-    { type: 'integration_connected', icon: 'Link', color: 'text-success' },
-    { type: 'milestone_achieved', icon: 'Trophy', color: 'text-success' },
-    { type: 'metric_updated', icon: 'TrendingUp', color: 'text-primary' }
+  
+  const feedTypes = [
+    {
+      type: 'runway_alert',
+      category: ALERT_CATEGORIES.RUNWAY_LOW,
+      severity: 'critical',
+      icon: 'AlertCircle',
+      color: 'text-destructive',
+      titleTemplate: (startup) => 'Runway below threshold',
+      summaryTemplate: (startup) => `Runway dropped to ${startup.metrics.runway.toFixed(1)} months`,
+      affectedMetric: 'runway',
+      suggestedAction: 'Schedule fundraising discussion'
+    },
+    {
+      type: 'burn_spike',
+      category: ALERT_CATEGORIES.BURN_SPIKE,
+      severity: 'warning',
+      icon: 'TrendingUp',
+      color: 'text-warning',
+      titleTemplate: (startup) => 'Burn rate increased',
+      summaryTemplate: (startup) => 'Monthly burn increased by 15% to ' + formatCurrency(startup.metrics.burn, true),
+      affectedMetric: 'burn',
+      suggestedAction: 'Review expense breakdown'
+    },
+    {
+      type: 'report_submitted',
+      category: 'report_submitted',
+      severity: 'info',
+      icon: 'FileText',
+      color: 'text-primary',
+      titleTemplate: (startup) => 'Monthly report submitted',
+      summaryTemplate: (startup) => `${startup.name} submitted their monthly update`,
+      affectedMetric: null,
+      suggestedAction: 'Review and provide feedback'
+    },
+    {
+      type: 'revenue_growth',
+      category: 'metric_updated',
+      severity: 'success',
+      icon: 'TrendingUp',
+      color: 'text-success',
+      titleTemplate: (startup) => 'Strong revenue growth',
+      summaryTemplate: (startup) => `Revenue grew ${formatPercentage(startup.metrics.growthRate, 1)} month-over-month`,
+      affectedMetric: 'revenue',
+      suggestedAction: null
+    },
+    {
+      type: 'integration_broken',
+      category: ALERT_CATEGORIES.INTEGRATION_BROKEN,
+      severity: 'warning',
+      icon: 'Link2Off',
+      color: 'text-warning',
+      titleTemplate: (startup) => 'Integration sync failed',
+      summaryTemplate: (startup) => 'HubSpot integration has not synced for 48 hours',
+      affectedMetric: null,
+      suggestedAction: 'Notify founder to reconnect'
+    },
+    {
+      type: 'milestone_achieved',
+      category: 'milestone_achieved',
+      severity: 'success',
+      icon: 'Trophy',
+      color: 'text-success',
+      titleTemplate: (startup) => 'Milestone achieved',
+      summaryTemplate: (startup) => 'Reached $1M ARR milestone',
+      affectedMetric: null,
+      suggestedAction: null
+    },
+    {
+      type: 'data_stale',
+      category: ALERT_CATEGORIES.DATA_STALE,
+      severity: 'warning',
+      icon: 'Clock',
+      color: 'text-warning',
+      titleTemplate: (startup) => 'Data freshness degraded',
+      summaryTemplate: (startup) => 'Financial data has not updated in 7 days',
+      affectedMetric: null,
+      suggestedAction: 'Check integration health'
+    },
+    {
+      type: 'churn_increase',
+      category: ALERT_CATEGORIES.CHURN_HIGH,
+      severity: 'warning',
+      icon: 'UserMinus',
+      color: 'text-warning',
+      titleTemplate: (startup) => 'Churn rate increased',
+      summaryTemplate: (startup) => 'Customer churn rose 25% this month',
+      affectedMetric: 'churn',
+      suggestedAction: 'Review customer health scores'
+    },
+    {
+      type: 'pipeline_low',
+      category: ALERT_CATEGORIES.PIPELINE_LOW,
+      severity: 'warning',
+      icon: 'TrendingDown',
+      color: 'text-warning',
+      titleTemplate: (startup) => 'Pipeline coverage declining',
+      summaryTemplate: (startup) => 'Sales pipeline coverage fell below 2x threshold',
+      affectedMetric: 'pipeline',
+      suggestedAction: 'Discuss GTM strategy'
+    },
+    {
+      type: 'github_activity_low',
+      category: 'github_activity_slow',
+      severity: 'info',
+      icon: 'GitBranch',
+      color: 'text-muted-foreground',
+      titleTemplate: (startup) => 'Development velocity decreased',
+      summaryTemplate: (startup) => 'GitHub activity slowed 30% relative to prior 30 days',
+      affectedMetric: 'github_activity',
+      suggestedAction: 'Check team capacity'
+    }
   ];
   
-  mockStartups.slice(0, 15).forEach((startup, idx) => {
-    const activity = types[Math.floor(Math.random() * types.length)];
-    activities.push({
-      id: `feed-${idx}`,
-      startup: startup.name,
-      startupId: startup.id,
-      type: activity.type,
-      icon: activity.icon,
-      color: activity.color,
-      message: `${startup.name} - ${activity.type.replace('_', ' ')}`,
-      timestamp: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString()
-    });
+  mockStartups.slice(0, 25).forEach((startup, idx) => {
+    // Generate 1-3 activities per startup
+    const numActivities = Math.floor(Math.random() * 3) + 1;
+    
+    for (let i = 0; i < numActivities; i++) {
+      const feedType = feedTypes[Math.floor(Math.random() * feedTypes.length)];
+      const hoursAgo = Math.random() * 168; // Up to 7 days
+      
+      activities.push({
+        id: `feed-${idx}-${i}`,
+        startup: startup.name,
+        startupId: startup.id,
+        startupLogo: startup.logo,
+        type: feedType.type,
+        category: feedType.category,
+        severity: feedType.severity,
+        icon: feedType.icon,
+        color: feedType.color,
+        title: feedType.titleTemplate(startup),
+        summary: feedType.summaryTemplate(startup),
+        affectedMetric: feedType.affectedMetric,
+        suggestedAction: feedType.suggestedAction,
+        sourceSystem: feedType.affectedMetric ? 'Zoho Books' : 'System',
+        timestamp: new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString(),
+        acknowledged: Math.random() > 0.7
+      });
+    }
   });
   
   return activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+}
+
+function formatCurrency(value, compact = false) {
+  if (compact && value >= 1000) {
+    return `$${(value / 1000).toFixed(0)}K`;
+  }
+  return `$${value.toFixed(0)}`;
+}
+
+function formatPercentage(value, decimals = 1) {
+  return `${value.toFixed(decimals)}%`;
 }
 
 export const activityFeed = generateActivityFeed();

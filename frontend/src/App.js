@@ -10,6 +10,7 @@ import FounderWorkspace from '@/pages/FounderWorkspace';
 import FounderOnboarding from '@/pages/FounderOnboarding';
 import AlertsPage from '@/pages/AlertsPage';
 import ReportsPage from '@/pages/ReportsPage';
+import ReportDetailPage from '@/pages/ReportDetailPage';
 import LiveFeedPage from '@/pages/LiveFeedPage';
 import AdminPage from '@/pages/AdminPage';
 import '@/App.css';
@@ -98,6 +99,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['investor', 'admin']}>
                     <ReportsPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/report/:id" 
+                element={
+                  <ProtectedRoute allowedRoles={['investor', 'admin']}>
+                    <ReportDetailPage />
                   </ProtectedRoute>
                 } 
               />
