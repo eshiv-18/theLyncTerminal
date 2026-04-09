@@ -37,6 +37,9 @@ from routes.admin_onboarding import router as admin_onboarding_router
 # Import Founder Onboarding routes
 from routes.founder_onboarding import router as founder_onboarding_router
 
+# Import Content routes (Alerts, Reports, Feed)
+from routes.content import router as content_router
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -153,6 +156,10 @@ app.include_router(hubspot_data_router, prefix="/api")
 # Include Admin & Founder Onboarding routers
 app.include_router(admin_onboarding_router, prefix="/api")
 app.include_router(founder_onboarding_router, prefix="/api")
+
+
+# Include Content router (Alerts, Reports, Feed)
+app.include_router(content_router, prefix="/api")
 
 
 # Include Razorpay integration routers

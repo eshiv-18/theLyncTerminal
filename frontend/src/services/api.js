@@ -274,6 +274,43 @@ const api = {
       apiClient.get(`/api/founder/onboarding/status/${startupId}`),
   },
 
+  // ============ Alerts APIs ============
+  alerts: {
+    getAlerts: (params) => 
+      apiClient.get('/api/alerts', { params }),
+    
+    markAsRead: (alertId) => 
+      apiClient.post(`/api/alerts/${alertId}/read`),
+    
+    markAllAsRead: () => 
+      apiClient.post('/api/alerts/read-all'),
+  },
+
+  // ============ Reports APIs ============
+  reports: {
+    getReports: (params) => 
+      apiClient.get('/api/reports', { params }),
+    
+    getReport: (reportId) => 
+      apiClient.get(`/api/reports/${reportId}`),
+    
+    createReport: (data) => 
+      apiClient.post('/api/reports', data),
+    
+    updateReport: (reportId, data) => 
+      apiClient.put(`/api/reports/${reportId}`, data),
+  },
+
+  // ============ Activity Feed APIs ============
+  feed: {
+    getActivities: (params) => 
+      apiClient.get('/api/feed', { params }),
+    
+    createActivity: (data) => 
+      apiClient.post('/api/feed/activity', data),
+  },
+
+
   // ============ Feed APIs ============
   feed: {
     getActivities: (filters = {}) => 
