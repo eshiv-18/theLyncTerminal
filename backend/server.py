@@ -10,9 +10,16 @@ from typing import List
 import uuid
 from datetime import datetime, timezone
 
+# Import Zoho Books routes
+from routes.zoho_auth import router as zoho_auth_router
+from routes.zoho_financial import router as zoho_financial_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -20,7 +27,14 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # Create the main app without a prefix
-app = FastAPI()
+app = FastAPI(
+    title="Startup Progress Intelligence API",
+    description="API for startup portfolio monitoring and financial tracking",
+    version="1.0.0"
+)
+
+# Store database reference in app state for dependency injection
+app.state.db = db
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -69,6 +83,10 @@ async def get_status_checks():
 # Include the router in the main app
 app.include_router(api_router)
 
+# Include Zoho Books integration routers
+app.include_router(zoho_auth_router, prefix="/api")
+app.include_router(zoho_financial_router, prefix="/api")
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -77,13 +95,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+    logger.info("MongoDB connection closed")
