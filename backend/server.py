@@ -28,6 +28,9 @@ from routes.github_data import router as github_data_router
 # Import Auth routes
 from routes.auth import router as auth_router
 
+# Import Portfolio routes
+from routes.portfolio import router as portfolio_router
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -114,6 +117,9 @@ app.include_router(github_data_router, prefix="/api")
 
 # Include Authentication router
 app.include_router(auth_router, prefix="/api")
+
+# Include Portfolio router
+app.include_router(portfolio_router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,
