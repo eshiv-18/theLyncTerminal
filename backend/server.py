@@ -14,6 +14,10 @@ from datetime import datetime, timezone
 from routes.zoho_auth import router as zoho_auth_router
 from routes.zoho_financial import router as zoho_financial_router
 
+# Import HubSpot routes
+from routes.hubspot_auth import router as hubspot_auth_router
+from routes.hubspot_data import router as hubspot_data_router
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -86,6 +90,10 @@ app.include_router(api_router)
 # Include Zoho Books integration routers
 app.include_router(zoho_auth_router, prefix="/api")
 app.include_router(zoho_financial_router, prefix="/api")
+
+# Include HubSpot integration routers
+app.include_router(hubspot_auth_router, prefix="/api")
+app.include_router(hubspot_data_router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,

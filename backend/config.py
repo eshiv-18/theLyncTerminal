@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     zoho_redirect_uri: str = "http://localhost:8001/api/auth/zoho/callback"
     zoho_api_domain: str = "https://www.zohoapis.com"
     
+    # HubSpot OAuth
+    hubspot_client_id: str = ""
+    hubspot_client_secret: str = ""
+    hubspot_redirect_uri: str = "http://localhost:8001/api/auth/hubspot/callback"
+    
     # Database (using existing MongoDB)
     mongo_url: str
     db_name: str
