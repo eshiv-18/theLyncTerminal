@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     hubspot_client_secret: str = ""
     hubspot_redirect_uri: str = "http://localhost:8001/api/auth/hubspot/callback"
     
+    # Razorpay API
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
+    
     # Database (using existing MongoDB)
     mongo_url: str
     db_name: str

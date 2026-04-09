@@ -18,6 +18,9 @@ from routes.zoho_financial import router as zoho_financial_router
 from routes.hubspot_auth import router as hubspot_auth_router
 from routes.hubspot_data import router as hubspot_data_router
 
+# Import Razorpay routes
+from routes.razorpay_payments import router as razorpay_payments_router
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -94,6 +97,9 @@ app.include_router(zoho_financial_router, prefix="/api")
 # Include HubSpot integration routers
 app.include_router(hubspot_auth_router, prefix="/api")
 app.include_router(hubspot_data_router, prefix="/api")
+
+# Include Razorpay integration routers
+app.include_router(razorpay_payments_router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,
