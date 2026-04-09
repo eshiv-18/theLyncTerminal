@@ -55,6 +55,7 @@ class Report(BaseModel):
     report_type: str  # monthly, quarterly, board
     period: str  # e.g., "2024-Q1" or "2024-03"
     status: str  # draft, submitted, approved
+    summary_metrics: Optional[Dict[str, Any]] = {}  # Key metrics for quick view
     sections: List[ReportSection] = []
     created_at: datetime
     submitted_at: Optional[datetime] = None

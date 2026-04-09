@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { formatDate } from '@/lib/formatters';
+import { formatCurrency, formatPercentage } from '@/lib/formatters';
 import { toast } from 'sonner';
 import api from '../services/api';
 
@@ -101,6 +102,12 @@ const ReportsPage = () => {
       default:
         return 'outline';
     }
+  };
+
+  const getTrendIcon = (growth) => {
+    if (growth > 5) return <TrendingUp className="h-4 w-4 text-success" />;
+    if (growth < -5) return <TrendingDown className="h-4 w-4 text-destructive" />;
+    return <Minus className="h-4 w-4 text-muted-foreground" />;
   };
 
   if (loading) {
@@ -264,13 +271,40 @@ const ReportsPage = () => {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Sections</p>
-                      <p className="text-sm font-semibold tabular-nums">
-                        {report.sections?.length || 0}
-                      </p>
-                    </div>
+                  <div className="flex items-center gap-6 mr-4">
+                    {report.summary_metrics && (
+                      <>
+                        {report.summary_metrics.revenue !== undefined && (
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">Revenue</p>
+                            <p className="text-sm font-semibold tabular-nums">
+                              {formatCurrency(report.summary_metrics.revenue, true)}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {report.summary_metrics.revenue_growth !== undefined && (
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">Growth</p>
+                            <div className="flex items-center justify-end gap-1">
+                              {getTrendIcon(report.summary_metrics.revenue_growth)}
+                              <p className="text-sm font-semibold tabular-nums">
+                                {formatPercentage(report.summary_metrics.revenue_growth, 1, true)}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {report.summary_metrics.runway_months !== undefined && (
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">Runway</p>
+                            <p className="text-sm font-semibold tabular-nums">
+                              {report.summary_metrics.runway_months.toFixed(1)}m
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
                     
                     <Button variant="ghost" size="sm">
                       <Eye className="h-4 w-4" />

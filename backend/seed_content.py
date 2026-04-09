@@ -71,7 +71,13 @@ async def seed_content():
     
     # Create sample reports
     reports = []
-    for startup in startups[:2]:
+    for idx, startup in enumerate(startups[:2]):
+        # Get startup metrics for baseline
+        metrics = startup.get("metrics", {})
+        revenue = metrics.get("revenue", 500000)
+        growth = metrics.get("growth_rate", 15.0)
+        runway = metrics.get("runway_months", 18)
+        
         reports.append({
             "id": str(uuid4()),
             "startup_id": startup["id"],
@@ -79,11 +85,18 @@ async def seed_content():
             "report_type": "monthly",
             "period": "2024-03",
             "status": "submitted",
+            "summary_metrics": {
+                "revenue": revenue,
+                "revenue_growth": growth,
+                "runway_months": runway,
+                "burn_rate": metrics.get("burn_rate", 85000),
+                "cash_balance": metrics.get("cash_balance", 1500000)
+            },
             "sections": [
                 {
                     "title": "Financial Update",
-                    "content": "Revenue up 15% MoM. Burn rate stable at $85K/month.",
-                    "metrics": {"revenue": 50000, "burn_rate": 85000}
+                    "content": f"Revenue up {growth}% MoM. Burn rate stable at $85K/month.",
+                    "metrics": {"revenue": revenue, "burn_rate": 85000}
                 },
                 {
                     "title": "Product Progress",
@@ -98,6 +111,8 @@ async def seed_content():
             "submitted_by": startup.get("founder_email", "founder@example.com")
         })
         
+        # Quarterly draft report with summary metrics
+        metrics_q = startup.get("metrics", {})
         reports.append({
             "id": str(uuid4()),
             "startup_id": startup["id"],
@@ -105,6 +120,13 @@ async def seed_content():
             "report_type": "quarterly",
             "period": "2024-Q1",
             "status": "draft",
+            "summary_metrics": {
+                "revenue": metrics_q.get("revenue", 450000),
+                "revenue_growth": metrics_q.get("growth_rate", 12.0),
+                "runway_months": metrics_q.get("runway_months", 16),
+                "burn_rate": metrics_q.get("burn_rate", 90000),
+                "cash_balance": metrics_q.get("cash_balance", 1440000)
+            },
             "sections": [
                 {
                     "title": "Q1 Summary",
