@@ -102,3 +102,7 @@ frontend/node_modules/.cache/default-development/15.pack
 # Exclude local environment overrides only
 .env.local
 .env.*.local
+-e 
+# Environment files
+*.env
+*.env.*
