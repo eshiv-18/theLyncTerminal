@@ -25,6 +25,9 @@ from routes.razorpay_payments import router as razorpay_payments_router
 from routes.github_auth import router as github_auth_router
 from routes.github_data import router as github_data_router
 
+# Import Auth routes
+from routes.auth import router as auth_router
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -108,6 +111,9 @@ app.include_router(razorpay_payments_router, prefix="/api")
 # Include GitHub integration routers
 app.include_router(github_auth_router, prefix="/api")
 app.include_router(github_data_router, prefix="/api")
+
+# Include Authentication router
+app.include_router(auth_router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,

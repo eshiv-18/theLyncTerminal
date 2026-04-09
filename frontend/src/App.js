@@ -1,9 +1,12 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { Toaster } from '@/components/ui/sonner';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import MainLayout from '@/components/MainLayout';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import PortfolioDashboard from '@/pages/PortfolioDashboard';
 import StartupDetail from '@/pages/StartupDetail';
 import FounderWorkspace from '@/pages/FounderWorkspace';
@@ -17,65 +20,53 @@ import AdminOnboarding from '@/pages/AdminOnboarding';
 import IntegrationsPage from '@/pages/IntegrationsPage';
 import '@/App.css';
 
-// Route guard component
-const ProtectedRoute = ({ children, allowedRoles }) => {
-  const { currentUser, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (!currentUser) {
-    return <Navigate to="/" replace />;
-  }
-
-  if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
-};
-
-// Landing/redirect component
-const Landing = () => {
-  const { currentUser, isFounder } = useAuth();
-
-  React.useEffect(() => {
-    if (currentUser) {
-      // Redirect based on user role
-      window.location.href = isFounder ? '/founder' : '/portfolio';
-    }
-  }, [currentUser, isFounder]);
-
-  return (
-    <div className="flex items-center justify-center h-screen">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-    </div>
-  );
-};
-
 function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Landing />} />
+            {/* Public routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            
+            {/* Default redirect to login */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
             
             {/* Onboarding */}
-            <Route path="/onboarding" element={<EnhancedFounderOnboarding />} />
-            <Route path="/founder/onboarding" element={<EnhancedFounderOnboarding />} />
-            <Route path="/admin/onboarding" element={<AdminOnboarding />} />
+            <Route 
+              path="/onboarding" 
+              element={
+                <ProtectedRoute>
+                  <EnhancedFounderOnboarding />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/founder/onboarding" 
+              element={
+                <ProtectedRoute allowedRoles={['founder']}>
+                  <EnhancedFounderOnboarding />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/onboarding" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminOnboarding />
+                </ProtectedRoute>
+              } 
+            />
             
-            {/* Integrations */}
-            <Route path="/integrations" element={<IntegrationsPage />} />
-            
-            {/* Main app routes */}
-            <Route element={<MainLayout />}>
+            {/* Main app routes with MainLayout */}
+            <Route 
+              element={
+                <ProtectedRoute>
+                  <MainLayout />
+                </ProtectedRoute>
+              }
+            >
               {/* Investor routes */}
               <Route 
                 path="/portfolio" 
@@ -147,11 +138,18 @@ function App() {
               />
               
               {/* Integrations */}
-              <Route path="/integrations" element={<IntegrationsPage />} />
+              <Route 
+                path="/integrations" 
+                element={
+                  <ProtectedRoute>
+                    <IntegrationsPage />
+                  </ProtectedRoute>
+                } 
+              />
             </Route>
             
-            {/* Catch all - redirect to home */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* Catch all - redirect to login */}
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
           <Toaster position="top-right" />
         </BrowserRouter>
