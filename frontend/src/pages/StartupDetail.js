@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   ArrowLeft, 
   DollarSign, 
@@ -15,7 +16,9 @@ import {
   Activity,
   Link as LinkIcon,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Loader2,
+  AlertCircle
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -43,19 +46,103 @@ import MetricCard from '@/components/MetricCard';
 import HealthBadge from '@/components/HealthBadge';
 import AlertCard from '@/components/AlertCard';
 import ActivityFeedItem from '@/components/ActivityFeedItem';
+import api from '../services/api';
+import { toast } from 'sonner';
 
 const StartupDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
-  
-  const startup = mockStartups.find(s => s.id === id);
+  const [startup, setStartup] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  if (!startup) {
+  useEffect(() => {
+    fetchStartupDetails();
+  }, [id]);
+
+  const fetchStartupDetails = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await api.startups.getById(id);
+      
+      // Transform API data to match component structure
+      const apiStartup = response.data;
+      const transformedStartup = {
+        id: apiStartup.id,
+        name: apiStartup.name,
+        logo: apiStartup.logo_url,
+        description: apiStartup.description,
+        website: apiStartup.website,
+        sector: 'SaaS', // Default
+        stage: apiStartup.stage,
+        health: apiStartup.health_status,
+        healthScore: apiStartup.health_score,
+        fundingAmount: apiStartup.funding_amount,
+        valuation: apiStartup.valuation,
+        founderName: apiStartup.founder_name,
+        metrics: {
+          mrr: apiStartup.metrics.mrr,
+          arr: apiStartup.metrics.arr,
+          revenue: apiStartup.metrics.revenue,
+          growthRate: apiStartup.metrics.growth_rate,
+          runway: apiStartup.metrics.runway_months,
+          netBurn: apiStartup.metrics.burn_rate,
+          cashBalance: apiStartup.metrics.cash_balance,
+          teamSize: apiStartup.metrics.headcount,
+          customers: apiStartup.metrics.customer_count,
+          // Mock historical data for now (would come from API)
+          revenueHistory: [],
+          burnHistory: [],
+          cashHistory: []
+        },
+        integrations: apiStartup.integrations.map(i => ({
+          name: i.name,
+          status: i.connected ? 'connected' : 'disconnected',
+          lastSync: i.last_sync
+        })),
+        alerts: [], // Would fetch separately
+        activities: [], // Would fetch separately
+        lastUpdate: apiStartup.updated_at
+      };
+      
+      setStartup(transformedStartup);
+    } catch (err) {
+      console.error('Failed to fetch startup details:', err);
+      setError(err.response?.data?.detail || 'Failed to load startup details');
+      
+      // Fallback to mock data
+      const mockStartup = mockStartups.find(s => s.id === id);
+      if (mockStartup) {
+        setStartup(mockStartup);
+        toast.warning('Showing demo data - API unavailable');
+      } else {
+        toast.error('Startup not found');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-2">Startup not found</h2>
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  const startupToUse = startup;
+
+  if (!startupToUse) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center space-y-4">
+          <AlertCircle className="w-12 h-12 mx-auto text-destructive" />
+          <h2 className="text-2xl font-semibold">Startup not found</h2>
+          <p className="text-muted-foreground">The startup you're looking for doesn't exist or you don't have access.</p>
           <Button onClick={() => navigate('/portfolio')} variant="outline">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Portfolio
@@ -66,12 +153,14 @@ const StartupDetail = () => {
   }
 
   // Prepare combined financial data
-  const financialData = startup.metrics.revenueHistory.map((item, idx) => ({
-    date: new Date(item.date).toLocaleDateString('en-US', { month: 'short' }),
-    revenue: item.value,
-    burn: startup.metrics.burnHistory[idx]?.value || 0,
-    cash: startup.metrics.cashHistory[idx]?.value || 0
-  }));
+  const financialData = startupToUse.metrics.revenueHistory?.length > 0
+    ? startupToUse.metrics.revenueHistory.map((item, idx) => ({
+        date: new Date(item.date).toLocaleDateString('en-US', { month: 'short' }),
+        revenue: item.value,
+        burn: startupToUse.metrics.burnHistory[idx]?.value || 0,
+        cash: startupToUse.metrics.cashHistory[idx]?.value || 0
+      }))
+    : []; // Empty if no historical data
 
   return (
     <div className="space-y-6">
@@ -87,24 +176,24 @@ const StartupDetail = () => {
           </Button>
           <div className="flex items-start gap-4">
             <img 
-              src={startup.logo} 
-              alt={startup.name} 
+              src={startupToUse.logo} 
+              alt={startupToUse.name} 
               className="h-16 w-16 rounded-xl border"
             />
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-semibold">{startup.name}</h1>
-                <HealthBadge health={startup.health} />
+                <h1 className="text-3xl font-semibold">{startupToUse.name}</h1>
+                <HealthBadge health={startupToUse.health} />
               </div>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>{startup.sector}</span>
+                <span>{startupToUse.sector}</span>
                 <span>•</span>
-                <span>{startup.stage}</span>
+                <span>{startupToUse.stage}</span>
                 <span>•</span>
-                <span>{startup.businessModel}</span>
+                <span>{startupToUse.businessModel}</span>
               </div>
               <div className="flex items-center gap-2 mt-2">
-                {startup.founders.map((founder, idx) => (
+                {startupToUse.founders.map((founder, idx) => (
                   <Badge key={idx} variant="outline">
                     {founder.name} - {founder.role}
                   </Badge>
@@ -115,9 +204,9 @@ const StartupDetail = () => {
         </div>
         <div className="text-right text-sm">
           <p className="text-muted-foreground">Last updated</p>
-          <p className="font-medium">{formatRelativeTime(startup.reporting.lastReport)}</p>
+          <p className="font-medium">{formatRelativeTime(startupToUse.reporting.lastReport)}</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Data freshness: {startup.dataFreshness}%
+            Data freshness: {startupToUse.dataFreshness}%
           </p>
         </div>
       </div>
@@ -126,27 +215,27 @@ const StartupDetail = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Revenue"
-          value={startup.metrics.revenue}
+          value={startupToUse.metrics.revenue}
           format="currency-compact"
-          change={startup.metrics.growthRate}
+          change={startupToUse.metrics.growthRate}
           trend="positive"
           icon={DollarSign}
         />
         <MetricCard
           title="Growth Rate"
-          value={startup.metrics.growthRate}
+          value={startupToUse.metrics.growthRate}
           format="percentage"
           icon={TrendingUp}
         />
         <MetricCard
           title="Monthly Burn"
-          value={startup.metrics.burn}
+          value={startupToUse.metrics.burn}
           format="currency-compact"
           icon={Activity}
         />
         <MetricCard
           title="Runway"
-          value={startup.metrics.runway.toFixed(1)}
+          value={startupToUse.metrics.runway.toFixed(1)}
           subtitle="months"
           format="number"
           icon={Clock}
@@ -220,39 +309,39 @@ const StartupDetail = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Headcount</span>
                   <span className="text-lg font-semibold tabular-nums">
-                    {startup.metrics.headcount}
+                    {startupToUse.metrics.headcount}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Cash Balance</span>
                   <span className="text-lg font-semibold tabular-nums">
-                    {formatCurrency(startup.metrics.cash, true)}
+                    {formatCurrency(startupToUse.metrics.cash, true)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Net Burn</span>
                   <span className="text-lg font-semibold tabular-nums">
-                    {formatCurrency(startup.metrics.netBurn, true)}
+                    {formatCurrency(startupToUse.metrics.netBurn, true)}
                   </span>
                 </div>
-                {startup.businessModel === 'SaaS' && (
+                {startupToUse.businessModel === 'SaaS' && (
                   <>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">ARR</span>
                       <span className="text-lg font-semibold tabular-nums">
-                        {formatCurrency(startup.metrics.arr, true)}
+                        {formatCurrency(startupToUse.metrics.arr, true)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">NRR</span>
                       <span className="text-lg font-semibold tabular-nums">
-                        {formatPercentage(startup.metrics.nrr)}
+                        {formatPercentage(startupToUse.metrics.nrr)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Churn Rate</span>
                       <span className="text-lg font-semibold tabular-nums">
-                        {formatPercentage(startup.metrics.churnRate)}
+                        {formatPercentage(startupToUse.metrics.churnRate)}
                       </span>
                     </div>
                   </>
@@ -262,11 +351,11 @@ const StartupDetail = () => {
           </div>
 
           {/* Alerts */}
-          {startup.alerts.length > 0 && (
+          {startupToUse.alerts.length > 0 && (
             <div>
               <h3 className="text-lg font-semibold mb-4">Active Alerts</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {startup.alerts.map(alert => (
+                {startupToUse.alerts.map(alert => (
                   <AlertCard key={alert.id} alert={alert} />
                 ))}
               </div>
@@ -280,7 +369,7 @@ const StartupDetail = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {startup.integrations.map((integration, idx) => (
+                {startupToUse.integrations.map((integration, idx) => (
                   <div key={idx} className="flex items-center gap-3 p-3 rounded-lg border bg-card">
                     <div className={
                       integration.status === 'active' 
@@ -404,84 +493,84 @@ const StartupDetail = () => {
 
         {/* Metrics Tab */}
         <TabsContent value="metrics" className="space-y-6">
-          {startup.businessModel === 'SaaS' && (
+          {startupToUse.businessModel === 'SaaS' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <MetricCard
                 title="ARR"
-                value={startup.metrics.arr}
+                value={startupToUse.metrics.arr}
                 format="currency-compact"
               />
               <MetricCard
                 title="Net Revenue Retention"
-                value={startup.metrics.nrr}
+                value={startupToUse.metrics.nrr}
                 format="percentage"
               />
               <MetricCard
                 title="Churn Rate"
-                value={startup.metrics.churnRate}
+                value={startupToUse.metrics.churnRate}
                 format="percentage"
               />
               <MetricCard
                 title="CAC"
-                value={startup.metrics.cac}
+                value={startupToUse.metrics.cac}
                 format="currency-compact"
               />
               <MetricCard
                 title="LTV"
-                value={startup.metrics.ltv}
+                value={startupToUse.metrics.ltv}
                 format="currency-compact"
               />
               <MetricCard
                 title="Gross Margin"
-                value={startup.metrics.grossMargin}
+                value={startupToUse.metrics.grossMargin}
                 format="percentage"
               />
             </div>
           )}
-          {startup.businessModel === 'Marketplace' && (
+          {startupToUse.businessModel === 'Marketplace' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <MetricCard
                 title="GMV"
-                value={startup.metrics.gmv}
+                value={startupToUse.metrics.gmv}
                 format="currency-compact"
               />
               <MetricCard
                 title="Take Rate"
-                value={startup.metrics.takeRate}
+                value={startupToUse.metrics.takeRate}
                 format="percentage"
               />
               <MetricCard
                 title="Active Buyers"
-                value={startup.metrics.buyers}
+                value={startupToUse.metrics.buyers}
                 format="compact"
               />
               <MetricCard
                 title="Active Sellers"
-                value={startup.metrics.sellers}
+                value={startupToUse.metrics.sellers}
                 format="compact"
               />
             </div>
           )}
-          {startup.businessModel === 'Consumer' && (
+          {startupToUse.businessModel === 'Consumer' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <MetricCard
                 title="MAU"
-                value={startup.metrics.mau}
+                value={startupToUse.metrics.mau}
                 format="compact"
               />
               <MetricCard
                 title="DAU"
-                value={startup.metrics.dau}
+                value={startupToUse.metrics.dau}
                 format="compact"
               />
               <MetricCard
                 title="Activation Rate"
-                value={startup.metrics.activationRate}
+                value={startupToUse.metrics.activationRate}
                 format="percentage"
               />
               <MetricCard
                 title="D30 Retention"
-                value={startup.metrics.retentionD30}
+                value={startupToUse.metrics.retentionD30}
                 format="percentage"
               />
             </div>
@@ -496,7 +585,7 @@ const StartupDetail = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {startup.recentActivity.map(activity => (
+                {startupToUse.recentActivity.map(activity => (
                   <ActivityFeedItem key={activity.id} activity={activity} />
                 ))}
               </div>
@@ -513,7 +602,7 @@ const StartupDetail = () => {
                   <div>
                     <p className="text-sm text-muted-foreground">Last Report</p>
                     <p className="text-lg font-semibold">
-                      {formatDate(startup.reporting.lastReport)}
+                      {formatDate(startupToUse.reporting.lastReport)}
                     </p>
                   </div>
                   <FileText className="h-8 w-8 text-muted-foreground" />
@@ -525,8 +614,8 @@ const StartupDetail = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Status</p>
-                    <Badge className="mt-1" variant={startup.reporting.status === 'current' ? 'default' : 'destructive'}>
-                      {startup.reporting.status}
+                    <Badge className="mt-1" variant={startupToUse.reporting.status === 'current' ? 'default' : 'destructive'}>
+                      {startupToUse.reporting.status}
                     </Badge>
                   </div>
                   <Activity className="h-8 w-8 text-muted-foreground" />
@@ -539,7 +628,7 @@ const StartupDetail = () => {
                   <div>
                     <p className="text-sm text-muted-foreground">Completeness</p>
                     <p className="text-lg font-semibold">
-                      {startup.reporting.completeness}%
+                      {startupToUse.reporting.completeness}%
                     </p>
                   </div>
                   <CheckCircle2 className="h-8 w-8 text-muted-foreground" />
@@ -557,7 +646,7 @@ const StartupDetail = () => {
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div>
                     <p className="font-medium">Monthly Report - {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
-                    <p className="text-sm text-muted-foreground">Submitted {formatRelativeTime(startup.reporting.lastReport)}</p>
+                    <p className="text-sm text-muted-foreground">Submitted {formatRelativeTime(startupToUse.reporting.lastReport)}</p>
                   </div>
                   <Button variant="outline" size="sm">
                     <ExternalLink className="h-4 w-4 mr-2" />
