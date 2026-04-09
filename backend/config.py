@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
     
+    # GitHub OAuth
+    github_client_id: str = ""
+    github_client_secret: str = ""
+    github_redirect_uri: str = "http://localhost:8001/api/auth/github/callback"
+    
     # Database (using existing MongoDB)
     mongo_url: str
     db_name: str
