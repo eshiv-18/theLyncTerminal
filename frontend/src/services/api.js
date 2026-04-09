@@ -245,6 +245,7 @@ const api = {
     
     update: (id, reportData) => 
       apiClient.put(`/api/reports/${id}`, reportData),
+  },
 
   // ============ Admin Onboarding APIs ============
   adminOnboarding: {
@@ -271,8 +272,6 @@ const api = {
     
     getOnboardingStatus: (startupId) => 
       apiClient.get(`/api/founder/onboarding/status/${startupId}`),
-  },
-
   },
 
   // ============ Feed APIs ============
