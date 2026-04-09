@@ -5,16 +5,17 @@ import os
 
 
 class Settings(BaseSettings):
+    # Base Application URL (for OAuth redirects)
+    app_url: str = os.getenv("APP_URL", "http://localhost:8001")
+    
     # Zoho Books OAuth
     zoho_client_id: str = ""
     zoho_client_secret: str = ""
-    zoho_redirect_uri: str = os.getenv("ZOHO_REDIRECT_URI", "http://localhost:8001/api/auth/zoho/callback")
     zoho_api_domain: str = "https://www.zohoapis.com"
     
     # HubSpot OAuth
     hubspot_client_id: str = ""
     hubspot_client_secret: str = ""
-    hubspot_redirect_uri: str = os.getenv("HUBSPOT_REDIRECT_URI", "http://localhost:8001/api/auth/hubspot/callback")
     
     # Razorpay API
     razorpay_key_id: str = ""
@@ -24,7 +25,6 @@ class Settings(BaseSettings):
     # GitHub OAuth
     github_client_id: str = ""
     github_client_secret: str = ""
-    github_redirect_uri: str = os.getenv("GITHUB_REDIRECT_URI", "http://localhost:8001/api/auth/github/callback")
     
     # Database (using existing MongoDB)
     mongo_url: str
@@ -42,6 +42,21 @@ class Settings(BaseSettings):
     
     # API Settings
     zoho_rate_limit_per_minute: int = 100
+    
+    @property
+    def zoho_redirect_uri(self) -> str:
+        """Dynamically construct Zoho OAuth redirect URI"""
+        return f"{self.app_url}/api/auth/zoho/callback"
+    
+    @property
+    def hubspot_redirect_uri(self) -> str:
+        """Dynamically construct HubSpot OAuth redirect URI"""
+        return f"{self.app_url}/api/auth/hubspot/callback"
+    
+    @property
+    def github_redirect_uri(self) -> str:
+        """Dynamically construct GitHub OAuth redirect URI"""
+        return f"{self.app_url}/api/auth/github/callback"
     
     class Config:
         env_file = ".env"
