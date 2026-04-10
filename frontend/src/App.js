@@ -19,6 +19,8 @@ import LiveFeedPage from '@/pages/LiveFeedPage';
 import AdminPage from '@/pages/AdminPage';
 import AdminOnboarding from '@/pages/AdminOnboarding';
 import IntegrationsPage from '@/pages/IntegrationsPage';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
+import TermsOfService from '@/pages/TermsOfService';
 import '@/App.css';
 
 function App() {
@@ -31,6 +33,8 @@ function App() {
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
             
             {/* Default redirect to login */}
             <Route path="/" element={<Navigate to="/login" replace />} />
