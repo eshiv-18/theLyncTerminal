@@ -48,8 +48,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
+mongo_url = os.environ.get('MONGO_URL')
+
+if not mongo_url:
+    raise Exception("MONGO_URL not set")
+
+client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=5000)
 db = client[os.environ['DB_NAME']]
 
 # Create the main app without a prefix
@@ -142,8 +146,8 @@ app.add_middleware(
 )
 
 # Add rate limiting middleware
-from middleware.rate_limit import RateLimitMiddleware
-app.add_middleware(RateLimitMiddleware)
+# from middleware.rate_limit import RateLimitMiddleware
+# app.add_middleware(RateLimitMiddleware)
 
 # Include Zoho Books integration routers
 app.include_router(zoho_auth_router, prefix="/api")
