@@ -132,11 +132,8 @@ async def get_status_checks():
     
     return status_checks
 
-# Include the router in the main app
-app.include_router(api_router)
-
 # Configure CORS with environment variable
-allowed_origins = os.environ.get('CORS_ORIGINS', '*').split(',')
+allow_origins=["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origin.strip() for origin in allowed_origins] if allowed_origins != ['*'] else ['*'],
@@ -144,6 +141,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Include the router in the main app
+app.include_router(api_router)
+
+
+
 
 # Add rate limiting middleware
 # from middleware.rate_limit import RateLimitMiddleware
