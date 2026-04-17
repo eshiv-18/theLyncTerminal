@@ -19,16 +19,43 @@ export default function Login() {
   });
   const [error, setError] = useState('');
 
-  const from = location.state?.from?.pathname || '/portfolio';
+  /**
+   * Determine where to redirect the user based on role and onboarding status.
+   */
+  const getRedirectPath = (userData) => {
+    // If onboarding is not completed, redirect to onboarding
+    if (!userData.onboarding_completed) {
+      const onboardingRoutes = {
+        admin: '/admin/onboarding',
+        investor: '/admin/onboarding',
+        founder: '/onboarding'
+      };
+      return onboardingRoutes[userData.role] || '/onboarding';
+    }
+
+    // If onboarding is completed, redirect to role-based dashboard
+    const savedPath = location.state?.from?.pathname;
+    if (savedPath && savedPath !== '/login' && savedPath !== '/register') {
+      return savedPath;
+    }
+    
+    const defaultRoutes = {
+      admin: '/portfolio',
+      investor: '/portfolio',
+      founder: '/founder'
+    };
+    return defaultRoutes[userData.role] || '/portfolio';
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     try {
-      await login(formData.email, formData.password);
-      toast.success(`Welcome back!`);
-      navigate(from, { replace: true });
+      const userData = await login(formData.email, formData.password);
+      toast.success(`Welcome back, ${userData.name || 'User'}!`);
+      const redirectPath = getRedirectPath(userData);
+      navigate(redirectPath, { replace: true });
     } catch (err) {
       const errorMsg = err.message || 'Login failed. Please check your credentials.';
       setError(errorMsg);
@@ -41,10 +68,6 @@ export default function Login() {
       ...formData,
       [e.target.name]: e.target.value
     });
-  };
-
-  const quickLogin = (email, password) => {
-    setFormData({ email, password });
   };
 
   return (
@@ -152,40 +175,6 @@ export default function Login() {
                 <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
                   Sign up
                 </Link>
-              </div>
-            </div>
-
-            {/* Quick Login for Development */}
-            <div className="mt-6 pt-6 border-t">
-              <p className="text-xs text-slate-500 mb-3 text-center">Development Quick Login:</p>
-              <div className="space-y-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-xs"
-                  onClick={() => quickLogin('admin@startupintel.com', 'admin123')}
-                >
-                  <span className="font-semibold mr-2">Admin:</span> admin@startupintel.com
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-xs"
-                  onClick={() => quickLogin('sarah.chen@vc.com', 'investor123')}
-                >
-                  <span className="font-semibold mr-2">Investor:</span> sarah.chen@vc.com
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-xs"
-                  onClick={() => quickLogin('alex.thompson@startup.com', 'founder123')}
-                >
-                  <span className="font-semibold mr-2">Founder:</span> alex.thompson@startup.com
-                </Button>
               </div>
             </div>
           </CardContent>

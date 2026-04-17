@@ -22,6 +22,7 @@ class User(BaseModel):
     organization_id: Optional[str] = None  # For investors/founders
     avatar_url: Optional[str] = None
     is_active: bool = True
+    onboarding_completed: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_login: Optional[datetime] = None
@@ -40,6 +41,7 @@ class UserCreate(BaseModel):
     role: UserRole
     organization_id: Optional[str] = None
     avatar_url: Optional[str] = None
+    onboarding_completed: bool = False
 
 
 class UserLogin(BaseModel):
@@ -72,5 +74,6 @@ class UserResponse(BaseModel):
     organization_id: Optional[str] = None
     avatar_url: Optional[str] = None
     is_active: bool
+    onboarding_completed: bool = False
     created_at: datetime
     last_login: Optional[datetime] = None

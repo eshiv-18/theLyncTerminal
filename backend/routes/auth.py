@@ -5,6 +5,7 @@ from uuid import uuid4
 from models.user_models import (
     UserCreate, UserLogin, UserResponse, Token, User, UserRole
 )
+from pydantic import BaseModel
 from utils.auth import AuthUtils
 from middleware.auth import get_current_user, require_role
 import logging
@@ -12,6 +13,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request body for token refresh"""
+    refresh_token: str
 
 
 def get_db(request: Request) -> AsyncIOMotorDatabase:
@@ -53,6 +59,7 @@ async def register_user(
         "id": str(uuid4()),
         "password_hash": password_hash,
         "is_active": True,
+        "onboarding_completed": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "last_login": None
@@ -162,7 +169,7 @@ async def login(
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(
-    refresh_token: str,
+    body: RefreshTokenRequest,
     db: AsyncIOMotorDatabase = Depends(get_db)
 ):
     """
@@ -170,7 +177,7 @@ async def refresh_token(
     """
     try:
         # Verify refresh token
-        token_data = AuthUtils.verify_token(refresh_token, token_type="refresh")
+        token_data = AuthUtils.verify_token(body.refresh_token, token_type="refresh")
         
         # Verify user still exists and is active
         user_doc = await db.users.find_one({"id": token_data.user_id}, {"_id": 0})
@@ -200,24 +207,62 @@ async def refresh_token(
         )
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/me")
 async def get_current_user_info(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db)
 ):
     """
-    Get current authenticated user information
+    Get current authenticated user information with startup/onboarding data
+    
+    Returns:
+    - User info
+    - Startup data (if founder)
+    - Onboarding data (if available)
     """
-    return UserResponse(
-        id=current_user.id,
-        email=current_user.email,
-        name=current_user.name,
-        role=current_user.role,
-        organization_id=current_user.organization_id,
-        avatar_url=current_user.avatar_url,
-        is_active=current_user.is_active,
-        created_at=current_user.created_at,
-        last_login=current_user.last_login
-    )
+    response_data = {
+        "id": current_user.id,
+        "email": current_user.email,
+        "name": current_user.name,
+        "role": current_user.role,
+        "organization_id": current_user.organization_id,
+        "avatar_url": current_user.avatar_url,
+        "is_active": current_user.is_active,
+        "onboarding_completed": current_user.onboarding_completed,
+        "created_at": current_user.created_at,
+        "last_login": current_user.last_login
+    }
+    
+    # If founder, fetch startup and onboarding data
+    if current_user.role == "founder":
+        # Find startup linked to this founder
+        startup = await db.startups.find_one(
+            {"founder_id": current_user.id},
+            {"_id": 0}
+        )
+        
+        if startup:
+            response_data["startup"] = startup
+            
+            # Fetch onboarding preferences
+            preferences = await db.founder_preferences.find_one(
+                {"founder_id": current_user.id},
+                {"_id": 0}
+            )
+            if preferences:
+                response_data["onboarding_data"] = preferences
+        else:
+            # Check if user has a company_name from registration
+            if current_user.organization_id:
+                # Try to find workspace
+                workspace = await db.workspaces.find_one(
+                    {"id": current_user.organization_id},
+                    {"_id": 0}
+                )
+                if workspace:
+                    response_data["workspace"] = workspace
+    
+    return response_data
 
 
 @router.post("/logout")
@@ -227,6 +272,33 @@ async def logout(current_user: User = Depends(get_current_user)):
     """
     logger.info(f"User logged out: {current_user.email}")
     return {"message": "Successfully logged out"}
+
+
+@router.post("/complete-onboarding")
+async def complete_onboarding(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Mark the current user's onboarding as completed.
+    Called after the user finishes their role-specific onboarding flow.
+    """
+    result = await db.users.update_one(
+        {"id": current_user.id},
+        {"$set": {
+            "onboarding_completed": True,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    logger.info(f"Onboarding completed for user: {current_user.email} (role: {current_user.role})")
+    return {"message": "Onboarding completed successfully", "onboarding_completed": True}
 
 
 @router.get("/users", response_model=list[UserResponse])

@@ -18,7 +18,7 @@ import { useTheme } from '@/context/ThemeContext';
 import UserMenu from '@/components/UserMenu';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { mockStartups } from '@/data/mockData';
+// import { mockStartups } from '@/data/mockData';
 
 const MainLayout = () => {
   const navigate = useNavigate();
@@ -33,12 +33,7 @@ const MainLayout = () => {
   const isAdmin = user?.role === 'admin';
 
   // Count critical alerts
-  const criticalAlertCount = React.useMemo(() => {
-    return mockStartups.reduce((sum, s) => 
-      sum + s.alerts.filter(a => a.severity === 'critical').length, 0
-    );
-  }, []);
-
+  const criticalAlertCount = 0;
   const investorNav = [
     { name: 'Portfolio', path: '/portfolio', icon: LayoutDashboard },
     { name: 'Alerts', path: '/alerts', icon: Bell, badge: criticalAlertCount },

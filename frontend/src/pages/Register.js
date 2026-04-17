@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 export default function Register() {
   const navigate = useNavigate();
-  const { register, loading } = useAuth();
+  const { registerAndLogin, loading } = useAuth();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -21,7 +21,6 @@ export default function Register() {
     role: 'founder'
   });
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,26 +50,21 @@ export default function Register() {
         role: formData.role
       };
 
-      await register(userData);
-      setSuccess(true);
+      // Register and automatically login
+      const loggedInUser = await registerAndLogin(userData);
       
-      // Redirect based on role to onboarding
-      if (formData.role === 'investor') {
-        toast.success('Account created! Redirecting to admin onboarding...');
-        setTimeout(() => {
-          navigate('/admin/onboarding');
-        }, 2000);
-      } else if (formData.role === 'founder') {
-        toast.success('Account created! Redirecting to founder onboarding...');
-        setTimeout(() => {
-          navigate('/founder/onboarding');
-        }, 2000);
-      } else {
-        toast.success('Account created! Redirecting to login...');
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
-      }
+      toast.success('Account created successfully!');
+
+      // Redirect to role-based onboarding (user is now authenticated)
+      const onboardingRoutes = {
+        investor: '/admin/onboarding',
+        founder: '/onboarding',
+        admin: '/admin/onboarding'
+      };
+      
+      const redirectPath = onboardingRoutes[formData.role] || '/onboarding';
+      navigate(redirectPath, { replace: true });
+      
     } catch (err) {
       const errorMsg = err.message || 'Registration failed. Please try again.';
       setError(errorMsg);
@@ -123,8 +117,8 @@ export default function Register() {
                 <span className="text-sm font-bold">2</span>
               </div>
               <div>
-                <h3 className="font-semibold mb-1">Connect Your Data</h3>
-                <p className="text-sm text-blue-100">Integrate with Zoho, HubSpot, GitHub, and more</p>
+                <h3 className="font-semibold mb-1">Complete Onboarding</h3>
+                <p className="text-sm text-blue-100">Set up your workspace and configure your preferences</p>
               </div>
             </div>
             <div className="flex items-start gap-3">
@@ -150,111 +144,103 @@ export default function Register() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {success ? (
-              <Alert className="bg-green-50 border-green-200">
-                <AlertDescription className="text-green-800">
-                  Account created successfully! Redirecting to login...
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
 
-                <div className="space-y-2">
-                  <label htmlFor="name" className="text-sm font-medium">
-                    Full Name
-                  </label>
-                  <Input
-                    id="name"
-                    name="name"
-                    type="text"
-                    placeholder="John Doe"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium">
-                    Email
-                  </label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="role" className="text-sm font-medium">
-                    I am a...
-                  </label>
-                  <Select value={formData.role} onValueChange={handleRoleChange} disabled={loading}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select your role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="founder">Founder / Startup</SelectItem>
-                      <SelectItem value="investor">Investor / VC</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-slate-500">
-                    Note: Admin accounts can only be created by existing admins
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="password" className="text-sm font-medium">
-                    Password
-                  </label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="confirmPassword" className="text-sm font-medium">
-                    Confirm Password
-                  </label>
-                  <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    required
-                    disabled={loading}
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
+              <div className="space-y-2">
+                <label htmlFor="name" className="text-sm font-medium">
+                  Full Name
+                </label>
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
                   disabled={loading}
-                >
-                  {loading ? 'Creating account...' : 'Create account'}
-                </Button>
-              </form>
-            )}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="email" className="text-sm font-medium">
+                  Email
+                </label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="role" className="text-sm font-medium">
+                  I am a...
+                </label>
+                <Select value={formData.role} onValueChange={handleRoleChange} disabled={loading}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select your role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="founder">Founder / Startup</SelectItem>
+                    <SelectItem value="investor">Investor / VC</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500">
+                  Note: Admin accounts can only be created by existing admins
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="password" className="text-sm font-medium">
+                  Password
+                </label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="confirmPassword" className="text-sm font-medium">
+                  Confirm Password
+                </label>
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                  disabled={loading}
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loading}
+              >
+                {loading ? 'Creating account...' : 'Create account'}
+              </Button>
+            </form>
 
             <div className="mt-6 text-sm text-center text-slate-600">
               Already have an account?{' '}

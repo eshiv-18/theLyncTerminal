@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Building2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -45,9 +46,9 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  Cell
+  Cell, 
 } from 'recharts';
-import { mockStartups, portfolioMetrics, STAGES, SECTORS } from '@/data/mockData';
+import api from '../services/api';
 import { 
   formatCurrency, 
   formatNumber, 
@@ -62,7 +63,7 @@ import {
 import MetricCard from '@/components/MetricCard';
 import HealthBadge from '@/components/HealthBadge';
 import Sparkline from '@/components/Sparkline';
-import api from '../services/api';
+
 
 const PortfolioDashboard = () => {
   const navigate = useNavigate();
@@ -121,21 +122,46 @@ const PortfolioDashboard = () => {
         setStartupsList(transformedStartups);
         setDataSource('api');
         
-      } catch (error) {
-        console.error('Failed to fetch portfolio data:', error);
-        // Fallback to mock data
-        setStartupsList(mockStartups);
-        setDataSource('mock');
-      } finally {
-        setLoading(false);
-      }
+      // After line 128 - Better empty state handling
+} catch (error) {
+  console.error('Failed to fetch portfolio data:', error);
+  
+  // Show helpful error message
+  if (error.response?.status === 401) {
+    toast.error('Session expired. Please login again.');
+    navigate('/login');
+  } else {
+    toast.error('Unable to load portfolio data. Please try again.');
+  }
+  
+  // Set empty state
+  setStartupsList([]);
+  setPortfolioOverview({
+    total_startups: 0,
+    total_deployed: 0,
+    total_valuation: 0,
+    active_startups: 0,
+    healthy_count: 0,
+    warning_count: 0,
+    critical_count: 0,
+    total_alerts: 0,
+    critical_alerts: 0,
+    pending_reports: 0,
+    overdue_reports: 0,
+    top_performers: [],
+    recent_activity: []
+  });
+  setDataSource('empty');
+} finally {
+  setLoading(false);
+}
     };
 
     fetchPortfolioData();
   }, []);
 
-  // Use real data if available, otherwise mock
-  const activeStartups = dataSource === 'api' && startupsList.length > 0 ? startupsList : mockStartups;
+  // Only use real data — no mock fallback
+  const activeStartups = startupsList;
 
   // Filter and search startups
   const filteredStartups = useMemo(() => {
@@ -160,29 +186,22 @@ const PortfolioDashboard = () => {
     return result;
   }, [activeStartups, searchQuery, stageFilter, sectorFilter, healthFilter, sortBy]);
 
-  // Portfolio health trend data (last 12 months)
+  // Portfolio health trend data (last 12 months) — only computed if we have real startups
   const healthTrendData = useMemo(() => {
+    if (activeStartups.length === 0) return [];
     const months = [];
     for (let i = 11; i >= 0; i--) {
       const date = new Date();
       date.setMonth(date.getMonth() - i);
       const monthName = date.toLocaleDateString('en-US', { month: 'short' });
-      
-      // Simulate portfolio health score
-      const baseScore = 72;
-      const variance = Math.sin(i / 2) * 8;
-      const score = baseScore + variance;
-      
+      const avgHealth = activeStartups.reduce((sum, s) => sum + (s.healthScore || 50), 0) / activeStartups.length;
       months.push({
         month: monthName,
-        score: Math.round(score),
-        good: Math.round(portfolioMetrics.healthDistribution.good * (0.9 + Math.random() * 0.2)),
-        warning: Math.round(portfolioMetrics.healthDistribution.warning * (0.8 + Math.random() * 0.4)),
-        critical: Math.round(portfolioMetrics.healthDistribution.critical * (0.7 + Math.random() * 0.6))
+        score: Math.round(avgHealth),
       });
     }
     return months;
-  }, []);
+  }, [activeStartups]);
 
   // Growth vs Burn scatter data
   const growthBurnData = useMemo(() => {
@@ -231,7 +250,9 @@ const PortfolioDashboard = () => {
         totalStartups: portfolioOverview.total_startups,
         totalInvested: portfolioOverview.total_deployed,
         totalValuation: portfolioOverview.total_valuation,
-        medianRunway: 12, // Would need to calculate from startups
+        medianRunway: activeStartups.length > 0
+          ? Math.round(activeStartups.reduce((s, x) => s + (x.metrics?.runway || 0), 0) / activeStartups.length)
+          : 0,
         reportingCompletion: portfolioOverview.total_startups - portfolioOverview.pending_reports,
         criticalAlerts: portfolioOverview.critical_alerts,
         totalAlerts: portfolioOverview.total_alerts,
@@ -242,8 +263,18 @@ const PortfolioDashboard = () => {
         }
       };
     }
-    return portfolioMetrics; // Fallback to mock
-  }, [portfolioOverview]);
+    // Empty state when no data
+    return {
+      totalStartups: 0,
+      totalInvested: 0,
+      totalValuation: 0,
+      medianRunway: 0,
+      reportingCompletion: 0,
+      criticalAlerts: 0,
+      totalAlerts: 0,
+      healthDistribution: { good: 0, warning: 0, critical: 0 }
+    };
+  }, [portfolioOverview, activeStartups]);
 
   // Show loading state
   if (loading) {
@@ -253,9 +284,25 @@ const PortfolioDashboard = () => {
       </div>
     );
   }
+  const uniqueStages = [...new Set(activeStartups.map(s => s.stage).filter(Boolean))];
 
   return (
     <div className="space-y-6">
+      {activeStartups.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <Building2 className="h-16 w-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Portfolio Companies Yet</h3>
+            <p className="text-muted-foreground text-center max-w-md mb-6">
+              Get started by adding your first portfolio company or completing your onboarding.
+            </p>
+            <Button onClick={() => navigate('/admin-onboarding')}>
+              Add Portfolio Companies
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -313,7 +360,9 @@ const PortfolioDashboard = () => {
                   {actualMetrics.healthDistribution.good}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {Math.round((portfolioMetrics.healthDistribution.good / portfolioMetrics.totalStartups) * 100)}% of portfolio
+                  {actualMetrics.totalStartups > 0
+                    ? `${Math.round((actualMetrics.healthDistribution.good / actualMetrics.totalStartups) * 100)}% of portfolio`
+                    : 'No startups yet'}
                 </p>
               </div>
               <CheckCircle2 className="h-10 w-10 text-success" />
@@ -366,6 +415,7 @@ const PortfolioDashboard = () => {
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
               <LineChart data={healthTrendData}>
+                
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="month" 
@@ -452,7 +502,7 @@ const PortfolioDashboard = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Stages</SelectItem>
-                  {STAGES.map(stage => (
+                  {uniqueStages.map(stage => (
                     <SelectItem key={stage} value={stage}>{stage}</SelectItem>
                   ))}
                 </SelectContent>
@@ -508,79 +558,99 @@ const PortfolioDashboard = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredStartups.map((startup) => (
-                  <TableRow 
-                    key={startup.id}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => navigate(`/startup/${startup.id}`)}
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <img 
-                          src={startup.logo} 
-                          alt={startup.name} 
-                          className="h-8 w-8 rounded-lg"
-                        />
-                        <div>
-                          <div className="font-medium">{startup.name}</div>
-                          <div className="text-xs text-muted-foreground">{startup.sector}</div>
-                        </div>
+                {filteredStartups.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-16 text-muted-foreground">
+                      <div className="flex flex-col items-center gap-3">
+                        <Users className="h-12 w-12 opacity-30" />
+                        <p className="font-medium">No portfolio companies yet</p>
+                        <p className="text-sm">Add companies during onboarding or import them from the admin panel.</p>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{startup.stage}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <HealthBadge health={startup.health} />
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatCurrency(startup.metrics.revenue, true)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <span className={startup.metrics.growthRate > 0 ? 'text-success' : 'text-destructive'}>
-                        {formatPercentage(startup.metrics.growthRate, 1, true)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatCurrency(startup.metrics.burn, true)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <span className={
-                        startup.metrics.runway < 6 ? 'text-destructive' :
-                        startup.metrics.runway < 12 ? 'text-warning' :
-                        'text-success'
-                      }>
-                        {formatRunway(startup.metrics.runway)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="h-10 w-20">
-                        <Sparkline data={startup.metrics.revenueHistory} />
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {startup.alerts.length > 0 && (
-                        <Badge 
-                          variant="outline" 
-                          className={
-                            startup.alerts.some(a => a.severity === 'critical') 
-                              ? 'border-destructive text-destructive' 
-                              : 'border-warning text-warning'
-                          }
-                        >
-                          {startup.alerts.length}
-                        </Badge>
-                      )}
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  filteredStartups.map((startup) => (
+                    <TableRow 
+                      key={startup.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => navigate(`/startup/${startup.id}`)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          {startup.logo ? (
+                            <img 
+                              src={startup.logo} 
+                              alt={startup.name} 
+                              className="h-8 w-8 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <span className="text-xs font-bold text-primary">{startup.name?.charAt(0)}</span>
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-medium">{startup.name}</div>
+                            <div className="text-xs text-muted-foreground">{startup.sector}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{startup.stage}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <HealthBadge health={startup.health} />
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatCurrency(startup.metrics.revenue, true)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        <span className={startup.metrics.growthRate > 0 ? 'text-success' : 'text-destructive'}>
+                          {formatPercentage(startup.metrics.growthRate, 1, true)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatCurrency(startup.metrics.netBurn, true)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        <span className={
+                          startup.metrics.runway < 6 ? 'text-destructive' :
+                          startup.metrics.runway < 12 ? 'text-warning' :
+                          'text-success'
+                        }>
+                          {formatRunway(startup.metrics.runway)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-10 w-20">
+                          <Sparkline data={startup.metrics.revenueHistory} />
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {startup.alerts?.length > 0 && (
+                          <Badge 
+                            variant="outline" 
+                            className={
+                              startup.alerts.some(a => a.severity === 'critical') 
+                                ? 'border-destructive text-destructive' 
+                                : 'border-warning text-warning'
+                            }
+                          >
+                            {startup.alerts.length}
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
-    </div>
-  );
+      </>
+    )}
+  </div>
+);
 };
 
 export default PortfolioDashboard;

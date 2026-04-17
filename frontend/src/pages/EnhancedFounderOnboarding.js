@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -25,18 +24,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { 
-  Check, 
-  ArrowRight, 
+import {
+  Check,
+  ArrowRight,
   ArrowLeft,
   Building2,
   Link as LinkIcon,
   CheckCircle2,
   Shield,
   Eye,
-  Lock,
   Users,
-  Settings,
   BarChart3,
   Share2,
   FileText,
@@ -44,85 +41,100 @@ import {
   X,
   Loader2
 } from 'lucide-react';
-import { BUSINESS_MODELS, STAGES } from '@/data/mockData';
 import { toast } from 'sonner';
 import api from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+
+const BUSINESS_MODELS = ['SaaS', 'Marketplace', 'Consumer', 'Deeptech', 'Hardware'];
+const STAGES = ['Pre-Seed', 'Seed', 'Series A', 'Series B', 'Series C+'];
+const SECTORS = ['FinTech', 'HealthTech', 'EdTech', 'E-commerce', 'AI/ML', 'IoT', 'Logistics', 'SaaS'];
+
+const INTEGRATION_OPTIONS = [
+  { id: 'zoho', name: 'Zoho Books', type: 'Accounting', required: true, time: '2 min' },
+  { id: 'stripe', name: 'Stripe', type: 'Payments', required: true, time: '2 min' },
+  { id: 'hubspot', name: 'HubSpot', type: 'CRM', required: false, time: '3 min' },
+  { id: 'github', name: 'GitHub', type: 'Engineering', required: false, time: '2 min' },
+];
+
+const METRIC_TEMPLATES = [
+  { source: 'MRR', mapped: 'Monthly Recurring Revenue', value: '$42,500', confidence: 'high', approved: true },
+  { source: 'Cash Balance', mapped: 'Cash on Hand', value: '$310,000', confidence: 'high', approved: true },
+  { source: 'Pipeline', mapped: 'Qualified Pipeline', value: '$180,000', confidence: 'medium', approved: false },
+];
+
+const DEFAULT_SHARING_PREFERENCES = {
+  revenue: { investors: true, internal: true, update: true, board: true, dashboard: true },
+  cashBalance: { investors: true, internal: true, update: true, board: true, dashboard: true },
+  burnRate: { investors: true, internal: true, update: true, board: true, dashboard: false },
+  productVelocity: { investors: false, internal: true, update: true, board: false, dashboard: false },
+};
+
+const HELPER_COPY = {
+  1: 'Start by reviewing the workspace invitation and what this setup unlocks for your team.',
+  2: 'These consent settings define how reporting data is shared with investors and internal users.',
+  3: 'Accurate company details keep the reporting workspace aligned with your startup profile.',
+  4: 'Invite teammates who should help validate metrics or collaborate on monthly updates.',
+  5: 'Connecting data sources now reduces manual reporting work later.',
+  6: 'Review mapped metrics so the dashboard reflects the right signals.',
+  7: 'Choose which data is visible to investors, boards, and your internal workspace.',
+  8: 'Preview how investors will experience your company dashboard and reporting snapshots.',
+  9: 'Set the cadence, reminders, and draft generation behavior for ongoing reporting.',
+  10: 'Double-check the setup summary before creating the workspace.',
+};
 
 const EnhancedFounderOnboarding = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user, completeOnboarding, refreshUser } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [invitationData, setInvitationData] = useState(null);
-  const totalSteps = 10;
-  
-  // Get invitation token from URL
-  const invitationToken = searchParams.get('token');
-  
-  // Temporary state for team member input
+  const [isSelfRegistered, setIsSelfRegistered] = useState(false);
   const [teamEmail, setTeamEmail] = useState('');
   const [teamRole, setTeamRole] = useState('editor');
-  
+  const totalSteps = 10;
+
   const [formData, setFormData] = useState({
-    // Step 1: Invitation
     invitedBy: '',
     companyName: '',
     role: 'Founder Admin',
-    invitation_token: invitationToken || '',
-    
-    // Step 2: Trust & Consent
+    invitation_token: '',
     understoodDataSharing: false,
     reviewedVisibility: false,
-    understood_data_sharing: false,
-    reviewed_visibility: false,
-    
-    // Step 3: Company Details (Pre-populated from admin invitation)
-    website: 'https://techflow.ai',
-    sector: 'Enterprise AI',
-    stage: 'Seed',
-    businessModel: 'B2B SaaS',
-    hq: 'San Francisco, CA',
-    founders: 'Alex Thompson, Sarah Kim',
-    contactEmail: 'alex@techflow.ai',
-    reportingOwner: 'Alex Thompson',
-    financeOwner: 'Sarah Kim',
+    website: '',
+    sector: '',
+    stage: '',
+    businessModel: '',
+    hq: '',
+    founders: user?.name || '',
+    contactEmail: user?.email || '',
+    reportingOwner: user?.name || '',
+    financeOwner: '',
     reportingCadence: 'monthly',
-    
-    // Step 4: Team Invites
     teamMembers: [],
-    team_members: [],
-    
-    // Step 5: Data Sources
     connectedSources: [],
-    connected_sources: [],
-    
-    // Step 6: Metric Mappings
-    metricMappings: [],
-    metric_mappings: [],
-    
-    // Step 7: Sharing Preferences
-    sharingPreferences: {},
-    sharing_preferences: {},
-    
-    // Step 9: Reporting
+    metricMappings: METRIC_TEMPLATES,
+    sharingPreferences: DEFAULT_SHARING_PREFERENCES,
+    visibilityNotes: '',
     reportDueDate: 5,
     reminderSchedule: '3_days',
     defaultRecipients: [],
     boardReportFreq: 'quarterly',
     autoGenerateDrafts: true,
-    report_due_date: 5,
-    reminder_schedule: '3_days',
-    default_recipients: [],
-    board_report_freq: 'quarterly',
-    auto_generate_drafts: true
   });
 
-  // Verify invitation on component mount
   useEffect(() => {
-    const verifyInvitation = async () => {
+    const invitationToken = searchParams.get('token');
+
+    const loadInvitation = async () => {
       if (!invitationToken) {
-        toast.error('No invitation token provided');
-        navigate('/login');
+        setIsSelfRegistered(true);
+        setFormData((prev) => ({
+          ...prev,
+          founders: user?.name || '',
+          contactEmail: user?.email || '',
+          reportingOwner: user?.name || '',
+        }));
         return;
       }
 
@@ -130,123 +142,181 @@ const EnhancedFounderOnboarding = () => {
       try {
         const response = await api.founderOnboarding.verifyInvitation(invitationToken);
         const { invitation, startup, workspace } = response.data;
-        
+
         setInvitationData(response.data);
-        
-        // Pre-fill form data from invitation
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           invitation_token: invitationToken,
-          invitedBy: workspace.fund_name,
-          companyName: startup.name,
-          website: startup.website || '',
-          sector: startup.sector || '',
-          stage: startup.stage || '',
-          founders: startup.founder_name || ''
+          invitedBy: workspace?.fund_name || workspace?.name || 'VC Fund',
+          companyName: startup?.name || '',
+          website: startup?.website || '',
+          sector: startup?.sector || '',
+          stage: startup?.stage || '',
+          founders: invitation?.name || startup?.founder_name || '',
+          contactEmail: invitation?.email || startup?.founder_email || '',
+          reportingOwner: invitation?.name || startup?.founder_name || '',
         }));
-        
-        toast.success(`Welcome! You've been invited by ${workspace.fund_name}`);
       } catch (error) {
         console.error('Invitation verification failed:', error);
-        toast.error('Invalid or expired invitation');
-        setTimeout(() => navigate('/login'), 2000);
+        toast.error('Invalid or expired invitation link');
+        setTimeout(() => navigate('/login', { replace: true }), 1500);
       } finally {
         setLoading(false);
       }
     };
 
-    verifyInvitation();
-  }, [invitationToken, navigate]);
+    loadInvitation();
+  }, [navigate, searchParams, user]);
 
   const progress = (step / totalSteps) * 100;
 
   const steps = [
-    { num: 1, title: 'Accept Invitation', icon: CheckCircle2 },
-    { num: 2, title: 'Trust & Data Sharing', icon: Shield },
+    { num: 1, title: 'Welcome', icon: Sparkles },
+    { num: 2, title: 'Trust & Security', icon: Shield },
     { num: 3, title: 'Company Details', icon: Building2 },
-    { num: 4, title: 'Connect Data Sources', icon: LinkIcon },
-    { num: 5, title: 'Review Metrics', icon: BarChart3 },
-    { num: 6, title: 'Sharing Preferences', icon: Share2 },
-    { num: 7, title: 'Invite Team', icon: Users },
-    { num: 8, title: 'Dashboard Preview', icon: Eye },
-    { num: 9, title: 'Reporting Setup', icon: FileText },
-    { num: 10, title: 'Complete', icon: Sparkles }
+    { num: 4, title: 'Team Setup', icon: Users },
+    { num: 5, title: 'Data Sources', icon: LinkIcon },
+    { num: 6, title: 'Metrics', icon: BarChart3 },
+    { num: 7, title: 'Sharing', icon: Share2 },
+    { num: 8, title: 'Visibility', icon: Eye },
+    { num: 9, title: 'Reporting', icon: FileText },
+    { num: 10, title: 'Review', icon: CheckCircle2 },
   ];
 
-  const integrationOptions = [
-    { id: 'zoho', name: 'Zoho Books', type: 'accounting', required: true, time: '2 min' },
-    { id: 'stripe', name: 'Stripe', type: 'payments', required: true, time: '2 min' },
-    { id: 'hubspot', name: 'HubSpot', type: 'crm', required: false, time: '3 min' },
-    { id: 'salesforce', name: 'Salesforce', type: 'crm', required: false, time: '3 min' },
-    { id: 'jira', name: 'Jira', type: 'project', required: false, time: '2 min' },
-    { id: 'github', name: 'GitHub', type: 'code', required: false, time: '2 min' }
-  ];
+  const validateStep = () => {
+    if (step === 2 && (!formData.understoodDataSharing || !formData.reviewedVisibility)) {
+      toast.error('Please confirm both trust and visibility acknowledgements');
+      return false;
+    }
+
+    if (step === 3) {
+      if (!formData.companyName || !formData.sector || !formData.stage || !formData.businessModel || !formData.founders || !formData.contactEmail) {
+        toast.error('Please fill in all required company details');
+        return false;
+      }
+    }
+
+    if (step === 4) {
+      const duplicateEmail = formData.teamMembers.some((member, index) =>
+        formData.teamMembers.findIndex((candidate) => candidate.email === member.email) !== index
+      );
+      if (duplicateEmail) {
+        toast.error('Remove duplicate team member emails before continuing');
+        return false;
+      }
+    }
+
+    if (step === 6 && formData.metricMappings.length === 0) {
+      toast.error('Please keep at least one metric mapping');
+      return false;
+    }
+
+    return true;
+  };
+
+  const submitOnboarding = async () => {
+    const payload = {
+      company_name: formData.companyName,
+      companyName: formData.companyName,
+      website: formData.website,
+      sector: formData.sector,
+      stage: formData.stage,
+      business_model: formData.businessModel,
+      businessModel: formData.businessModel,
+      hq: formData.hq,
+      founders: formData.founders,
+      contact_email: formData.contactEmail,
+      contactEmail: formData.contactEmail,
+      reporting_owner: formData.reportingOwner,
+      finance_owner: formData.financeOwner,
+      reporting_cadence: formData.reportingCadence,
+      team_members: formData.teamMembers,
+      teamMembers: formData.teamMembers,
+      connected_sources: formData.connectedSources,
+      connectedSources: formData.connectedSources,
+      metric_mappings: formData.metricMappings,
+      metricMappings: formData.metricMappings,
+      sharing_preferences: formData.sharingPreferences,
+      sharingPreferences: formData.sharingPreferences,
+      report_due_date: formData.reportDueDate,
+      reportDueDate: formData.reportDueDate,
+      reminder_schedule: formData.reminderSchedule,
+      reminderSchedule: formData.reminderSchedule,
+      default_recipients: formData.defaultRecipients,
+      defaultRecipients: formData.defaultRecipients,
+      board_report_freq: formData.boardReportFreq,
+      boardReportFreq: formData.boardReportFreq,
+      auto_generate_drafts: formData.autoGenerateDrafts,
+      autoGenerateDrafts: formData.autoGenerateDrafts,
+    };
+
+    if (isSelfRegistered) {
+      await api.founderOnboarding.saveOnboarding(payload);
+    } else {
+      await api.founderOnboarding.completeOnboarding({
+        ...payload,
+        invitation_token: formData.invitation_token,
+        understood_data_sharing: formData.understoodDataSharing,
+        reviewed_visibility: formData.reviewedVisibility,
+      });
+    }
+
+    try {
+      await completeOnboarding();
+    } catch (error) {
+      console.error('Failed to mark onboarding complete:', error);
+    }
+    await refreshUser();
+    toast.success('Workspace setup complete!');
+    navigate('/founder', { replace: true });
+  };
 
   const handleNext = async () => {
-    // Validation
-    if (step === 2 && (!formData.understoodDataSharing || !formData.reviewedVisibility)) {
-      toast.error('Please review and accept data sharing terms');
+    if (!validateStep()) {
       return;
     }
-    
+
     if (step < totalSteps) {
-      setStep(step + 1);
-    } else {
-      // Complete onboarding
-      setLoading(true);
-      try {
-        const response = await api.founderOnboarding.completeOnboarding({
-          invitation_token: formData.invitation_token,
-          understood_data_sharing: formData.understoodDataSharing,
-          reviewed_visibility: formData.reviewedVisibility,
-          website: formData.website,
-          sector: formData.sector,
-          stage: formData.stage,
-          business_model: formData.businessModel,
-          hq: formData.hq,
-          founders: formData.founders,
-          contact_email: formData.contactEmail,
-          reporting_owner: formData.reportingOwner,
-          finance_owner: formData.financeOwner,
-          team_members: formData.teamMembers,
-          connected_sources: formData.connectedSources,
-          metric_mappings: formData.metricMappings,
-          sharing_preferences: formData.sharingPreferences,
-          report_due_date: formData.reportDueDate,
-          reminder_schedule: formData.reminderSchedule,
-          default_recipients: formData.defaultRecipients,
-          board_report_freq: formData.boardReportFreq,
-          auto_generate_drafts: formData.autoGenerateDrafts
-        });
-        
-        toast.success('🎉 Workspace setup complete!');
-        toast.info('Please login with your credentials to access your workspace');
-        setTimeout(() => navigate('/login'), 2500);
-      } catch (error) {
-        console.error('Onboarding error:', error);
-        toast.error(error.response?.data?.detail || 'Failed to complete onboarding');
-      } finally {
-        setLoading(false);
-      }
+      setStep((prev) => prev + 1);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await submitOnboarding();
+    } catch (error) {
+      console.error('Founder onboarding error:', error);
+      toast.error(error.message || 'Failed to complete onboarding');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleBack = () => {
-    if (step > 1) setStep(step - 1);
+    if (step > 1) {
+      setStep((prev) => prev - 1);
+    }
   };
 
   const handleConnectSource = (sourceId) => {
-    setFormData(prev => ({
+    if (formData.connectedSources.includes(sourceId)) {
+      return;
+    }
+
+    setFormData((prev) => ({
       ...prev,
-      connectedSources: [...prev.connectedSources, sourceId]
+      connectedSources: [...prev.connectedSources, sourceId],
     }));
-    toast.success('Integration connected!');
+    toast.success('Integration marked as connected');
   };
 
   const handleApproveMapping = (index) => {
-    const newMappings = [...formData.metricMappings];
-    newMappings[index].approved = !newMappings[index].approved;
-    setFormData(prev => ({ ...prev, metricMappings: newMappings }));
+    setFormData((prev) => ({
+      ...prev,
+      metricMappings: prev.metricMappings.map((mapping, mappingIndex) =>
+        mappingIndex === index ? { ...mapping, approved: !mapping.approved } : mapping
+      ),
+    }));
   };
 
   const handleAddTeamMember = () => {
@@ -254,43 +324,565 @@ const EnhancedFounderOnboarding = () => {
       toast.error('Please enter a valid email address');
       return;
     }
-    
-    // Check if email already exists
-    if (formData.teamMembers.some(member => member.email === teamEmail)) {
+
+    if (formData.teamMembers.some((member) => member.email === teamEmail)) {
       toast.error('This email is already invited');
       return;
     }
-    
-    const newMember = {
-      email: teamEmail,
-      role: teamRole,
-      id: Date.now()
-    };
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      teamMembers: [...prev.teamMembers, newMember]
+      teamMembers: [
+        ...prev.teamMembers,
+        {
+          email: teamEmail,
+          role: teamRole,
+          id: Date.now(),
+        },
+      ],
     }));
-    
-    toast.success(`Invitation sent to ${teamEmail}`);
-    
-    // Reset inputs
+
     setTeamEmail('');
     setTeamRole('editor');
+    toast.success('Team member added');
   };
 
   const handleRemoveTeamMember = (id) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      teamMembers: prev.teamMembers.filter(member => member.id !== id)
+      teamMembers: prev.teamMembers.filter((member) => member.id !== id),
     }));
-    toast.success('Team member removed');
+  };
+
+  const renderStepContent = () => {
+    if (step === 1) {
+      return (
+        <div className="space-y-6">
+          <div className="text-center py-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+              <Sparkles className="h-8 w-8 text-primary" />
+            </div>
+            <h2 className="text-2xl font-semibold mb-2">{isSelfRegistered ? 'Create Your Founder Workspace' : 'You\'re Invited'}</h2>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              {isSelfRegistered
+                ? 'We will guide you through workspace setup, data connection, and reporting preferences.'
+                : `${formData.invitedBy || 'Your investor'} invited you to onboard your startup workspace.`}
+            </p>
+          </div>
+
+          <div className="max-w-md mx-auto space-y-4">
+            <div className="p-4 border rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-muted-foreground">Workspace</span>
+                <Badge>{formData.invitedBy || 'Startup Intel'}</Badge>
+              </div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-muted-foreground">Company</span>
+                <span className="font-medium">{formData.companyName || 'To be confirmed'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Primary Contact</span>
+                <span className="font-medium">{formData.contactEmail || user?.email || 'Add later'}</span>
+              </div>
+            </div>
+
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+              <p className="text-sm font-medium">What you can do</p>
+              <ul className="space-y-1 text-sm text-muted-foreground">
+                <li className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-success shrink-0 mt-0.5" />
+                  <span>Connect revenue, finance, and operating tools once</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-success shrink-0 mt-0.5" />
+                  <span>Control exactly what investors can see</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-success shrink-0 mt-0.5" />
+                  <span>Automate monthly updates and board-ready reporting</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (step === 2) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Trust & Security</h3>
+            <p className="text-sm text-muted-foreground">Review what is shared and confirm visibility expectations.</p>
+          </div>
+
+          <Card className="border-primary/30">
+            <CardHeader>
+              <CardTitle className="text-base">What data will be synced</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Financial metrics</p>
+                  <p className="text-xs text-muted-foreground">Revenue, cash, burn, and runway from your finance stack.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">GTM metrics</p>
+                  <p className="text-xs text-muted-foreground">Pipeline, customer, and growth signals from sales systems.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Workspace updates</p>
+                  <p className="text-xs text-muted-foreground">Narrative notes, reporting drafts, and approved commentary.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-3">
+            <div className="flex items-start space-x-3">
+              <Checkbox
+                id="understoodDataSharing"
+                checked={formData.understoodDataSharing}
+                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, understoodDataSharing: checked === true }))}
+              />
+              <div>
+                <Label htmlFor="understoodDataSharing" className="cursor-pointer">I understand what data will be shared with investors.</Label>
+                <p className="text-xs text-muted-foreground mt-1">You can change visibility preferences before finishing setup.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-3">
+              <Checkbox
+                id="reviewedVisibility"
+                checked={formData.reviewedVisibility}
+                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, reviewedVisibility: checked === true }))}
+              />
+              <div>
+                <Label htmlFor="reviewedVisibility" className="cursor-pointer">I reviewed who can access reporting activity and dashboards.</Label>
+                <p className="text-xs text-muted-foreground mt-1">Investor visibility and internal visibility are configured separately.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (step === 3) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Company Details</h3>
+            <p className="text-sm text-muted-foreground">Review and complete your startup profile.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="companyName">Company Name *</Label>
+              <Input id="companyName" value={formData.companyName} onChange={(e) => setFormData((prev) => ({ ...prev, companyName: e.target.value }))} className="mt-2" />
+            </div>
+            <div>
+              <Label htmlFor="website">Website</Label>
+              <Input id="website" type="url" value={formData.website} onChange={(e) => setFormData((prev) => ({ ...prev, website: e.target.value }))} className="mt-2" />
+            </div>
+            <div>
+              <Label>Sector *</Label>
+              <Select value={formData.sector} onValueChange={(value) => setFormData((prev) => ({ ...prev, sector: value }))}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select sector" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SECTORS.map((sector) => (
+                    <SelectItem key={sector} value={sector}>{sector}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Stage *</Label>
+              <Select value={formData.stage} onValueChange={(value) => setFormData((prev) => ({ ...prev, stage: value }))}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STAGES.map((stage) => (
+                    <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Business Model *</Label>
+              <Select value={formData.businessModel} onValueChange={(value) => setFormData((prev) => ({ ...prev, businessModel: value }))}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select business model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {BUSINESS_MODELS.map((model) => (
+                    <SelectItem key={model} value={model}>{model}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="hq">Headquarters</Label>
+              <Input id="hq" value={formData.hq} onChange={(e) => setFormData((prev) => ({ ...prev, hq: e.target.value }))} className="mt-2" />
+            </div>
+            <div>
+              <Label htmlFor="founders">Founder / CEO *</Label>
+              <Input id="founders" value={formData.founders} onChange={(e) => setFormData((prev) => ({ ...prev, founders: e.target.value }))} className="mt-2" />
+            </div>
+            <div>
+              <Label htmlFor="contactEmail">Contact Email *</Label>
+              <Input id="contactEmail" type="email" value={formData.contactEmail} onChange={(e) => setFormData((prev) => ({ ...prev, contactEmail: e.target.value }))} className="mt-2" />
+            </div>
+            <div>
+              <Label htmlFor="reportingOwner">Reporting Owner</Label>
+              <Input id="reportingOwner" value={formData.reportingOwner} onChange={(e) => setFormData((prev) => ({ ...prev, reportingOwner: e.target.value }))} className="mt-2" />
+            </div>
+            <div>
+              <Label htmlFor="financeOwner">Finance Owner</Label>
+              <Input id="financeOwner" value={formData.financeOwner} onChange={(e) => setFormData((prev) => ({ ...prev, financeOwner: e.target.value }))} className="mt-2" />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (step === 4) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Team Setup</h3>
+            <p className="text-sm text-muted-foreground">Invite collaborators who help with monthly reporting and data review.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="teamEmail">Email Address</Label>
+              <Input id="teamEmail" type="email" value={teamEmail} onChange={(e) => setTeamEmail(e.target.value)} className="mt-2" placeholder="colleague@company.com" />
+            </div>
+            <div>
+              <Label htmlFor="teamRole">Role</Label>
+              <Select value={teamRole} onValueChange={setTeamRole}>
+                <SelectTrigger className="mt-2" id="teamRole">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="editor">Editor</SelectItem>
+                  <SelectItem value="viewer">Viewer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <Button variant="outline" className="w-full" onClick={handleAddTeamMember} type="button">
+            <Users className="h-4 w-4 mr-2" />
+            Add Team Member
+          </Button>
+
+          {formData.teamMembers.length > 0 ? (
+            <Card>
+              <CardContent className="p-4 space-y-3">
+                {formData.teamMembers.map((member) => (
+                  <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg bg-background">
+                    <div>
+                      <p className="text-sm font-medium">{member.email}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{member.role}</p>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => handleRemoveTeamMember(member.id)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">You can also invite teammates later from the workspace.</p>
+          )}
+        </div>
+      );
+    }
+
+    if (step === 5) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Data Sources</h3>
+            <p className="text-sm text-muted-foreground">Choose the systems you want to connect for automated reporting.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {INTEGRATION_OPTIONS.map((integration) => {
+              const isConnected = formData.connectedSources.includes(integration.id);
+              return (
+                <Card key={integration.id} className={isConnected ? 'border-success' : ''}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="font-medium">{integration.name}</p>
+                        <p className="text-xs text-muted-foreground">{integration.type}</p>
+                      </div>
+                      {integration.required ? <Badge variant="outline">Required</Badge> : null}
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3">Setup time: {integration.time}</p>
+                    <Button
+                      variant={isConnected ? 'outline' : 'default'}
+                      size="sm"
+                      className="w-full"
+                      disabled={isConnected}
+                      onClick={() => handleConnectSource(integration.id)}
+                    >
+                      {isConnected ? <><CheckCircle2 className="h-4 w-4 mr-2" />Connected</> : <><LinkIcon className="h-4 w-4 mr-2" />Connect</>}
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    if (step === 6) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Metrics</h3>
+            <p className="text-sm text-muted-foreground">Review and approve the metrics that will feed your investor reporting.</p>
+          </div>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Source Metric</TableHead>
+                <TableHead>Mapped To</TableHead>
+                <TableHead>Latest Value</TableHead>
+                <TableHead>Confidence</TableHead>
+                <TableHead className="text-center">Approve</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {formData.metricMappings.map((mapping, index) => (
+                <TableRow key={`${mapping.source}-${index}`}>
+                  <TableCell className="font-medium">{mapping.source}</TableCell>
+                  <TableCell>{mapping.mapped}</TableCell>
+                  <TableCell className="font-mono">{mapping.value}</TableCell>
+                  <TableCell>
+                    <Badge variant={mapping.confidence === 'high' ? 'default' : 'outline'}>{mapping.confidence}</Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Checkbox checked={mapping.approved} onCheckedChange={() => handleApproveMapping(index)} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      );
+    }
+
+    if (step === 7) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Sharing</h3>
+            <p className="text-sm text-muted-foreground">Set who can see each category of data.</p>
+          </div>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Metric</TableHead>
+                <TableHead className="text-center">Investors</TableHead>
+                <TableHead className="text-center">Internal</TableHead>
+                <TableHead className="text-center">Update</TableHead>
+                <TableHead className="text-center">Board</TableHead>
+                <TableHead className="text-center">Dashboard</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Object.entries(formData.sharingPreferences).map(([key, prefs]) => (
+                <TableRow key={key}>
+                  <TableCell className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</TableCell>
+                  {['investors', 'internal', 'update', 'board', 'dashboard'].map((field) => (
+                    <TableCell key={field} className="text-center">
+                      <Switch
+                        checked={prefs[field]}
+                        onCheckedChange={(checked) => setFormData((prev) => ({
+                          ...prev,
+                          sharingPreferences: {
+                            ...prev.sharingPreferences,
+                            [key]: {
+                              ...prev.sharingPreferences[key],
+                              [field]: checked,
+                            },
+                          },
+                        }))}
+                      />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      );
+    }
+
+    if (step === 8) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Visibility</h3>
+            <p className="text-sm text-muted-foreground">Add context for any private notes or special visibility instructions.</p>
+          </div>
+
+          <div className="border rounded-lg p-6 bg-muted/20">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground mb-1">Monthly Revenue</p>
+                  <p className="text-2xl font-bold">$42.5K</p>
+                  <p className="text-xs text-success">Healthy growth</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground mb-1">Cash Runway</p>
+                  <p className="text-2xl font-bold">11 mo</p>
+                  <p className="text-xs text-muted-foreground">Based on current burn</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs text-muted-foreground mb-1">Pipeline</p>
+                  <p className="text-2xl font-bold">$180K</p>
+                  <p className="text-xs text-success">Tracked from CRM</p>
+                </CardContent>
+              </Card>
+            </div>
+            <Textarea
+              value={formData.visibilityNotes}
+              onChange={(e) => setFormData((prev) => ({ ...prev, visibilityNotes: e.target.value }))}
+              placeholder="Add any notes about what should stay internal or how investors should interpret this dashboard."
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (step === 9) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Reporting</h3>
+            <p className="text-sm text-muted-foreground">Configure when reports are due and how drafts should be prepared.</p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="reportDueDate">Monthly Report Due Date</Label>
+              <Select value={String(formData.reportDueDate)} onValueChange={(value) => setFormData((prev) => ({ ...prev, reportDueDate: parseInt(value, 10) }))}>
+                <SelectTrigger className="mt-2" id="reportDueDate">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 5, 10, 15, 20].map((day) => (
+                    <SelectItem key={day} value={String(day)}>Day {day} of each month</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="reminderSchedule">Reminder Schedule</Label>
+              <Select value={formData.reminderSchedule} onValueChange={(value) => setFormData((prev) => ({ ...prev, reminderSchedule: value }))}>
+                <SelectTrigger className="mt-2" id="reminderSchedule">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1_day">1 day before</SelectItem>
+                  <SelectItem value="3_days">3 days before</SelectItem>
+                  <SelectItem value="1_week">1 week before</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="boardReportFreq">Board Report Frequency</Label>
+              <Select value={formData.boardReportFreq} onValueChange={(value) => setFormData((prev) => ({ ...prev, boardReportFreq: value }))}>
+                <SelectTrigger className="mt-2" id="boardReportFreq">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div>
+                <p className="text-sm font-medium">Auto-generate draft reports</p>
+                <p className="text-xs text-muted-foreground">We will prepare a first draft using synced metrics and workspace activity.</p>
+              </div>
+              <Switch checked={formData.autoGenerateDrafts} onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, autoGenerateDrafts: checked }))} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6 py-4">
+        <div className="text-center space-y-3">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-success/10 mb-4">
+            <CheckCircle2 className="h-8 w-8 text-success" />
+          </div>
+          <h2 className="text-2xl font-semibold">Review Your Setup</h2>
+          <p className="text-muted-foreground max-w-md mx-auto">Everything below will be used to create your founder workspace.</p>
+        </div>
+
+        <Card className="bg-muted/50">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Company</span>
+              <span className="text-sm">{formData.companyName || 'Not set'}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Team Members</span>
+              <span className="text-sm">{formData.teamMembers.length}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Connected Sources</span>
+              <span className="text-sm">{formData.connectedSources.length}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Approved Metrics</span>
+              <span className="text-sm">{formData.metricMappings.filter((mapping) => mapping.approved).length}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Reporting Due Date</span>
+              <span className="text-sm">Day {formData.reportDueDate}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   };
 
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
             <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center">
@@ -301,7 +893,7 @@ const EnhancedFounderOnboarding = () => {
               <p className="text-sm text-muted-foreground">Set up your workspace and start reporting</p>
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium">Step {step} of {totalSteps}</span>
@@ -312,40 +904,29 @@ const EnhancedFounderOnboarding = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left Stepper */}
           <div className="lg:col-span-1">
             <Card>
               <CardContent className="p-4">
                 <div className="space-y-2">
-                  {steps.map((s) => {
-                    const Icon = s.icon;
-                    const isActive = s.num === step;
-                    const isComplete = s.num < step;
-                    
+                  {steps.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = item.num === step;
+                    const isComplete = item.num < step;
+
                     return (
                       <div
-                        key={s.num}
+                        key={item.num}
                         className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
-                          isActive ? 'bg-primary/10 border border-primary' :
-                          isComplete ? 'bg-success/10' :
-                          'bg-muted/50'
+                          isActive ? 'bg-primary/10 border border-primary' : isComplete ? 'bg-success/10' : 'bg-muted/50'
                         }`}
                       >
                         <div className={`shrink-0 h-7 w-7 rounded-full flex items-center justify-center ${
-                          isActive ? 'bg-primary text-primary-foreground' :
-                          isComplete ? 'bg-success text-success-foreground' :
-                          'bg-muted text-muted-foreground'
+                          isActive ? 'bg-primary text-primary-foreground' : isComplete ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground'
                         }`}>
-                          {isComplete ? (
-                            <Check className="h-4 w-4" />
-                          ) : (
-                            <Icon className="h-4 w-4" />
-                          )}
+                          {isComplete ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
                         </div>
-                        <p className={`text-xs font-medium ${
-                          isActive ? 'text-foreground' : 'text-muted-foreground'
-                        }`}>
-                          {s.title}
+                        <p className={`text-xs font-medium ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
+                          {item.title}
                         </p>
                       </div>
                     );
@@ -354,857 +935,50 @@ const EnhancedFounderOnboarding = () => {
               </CardContent>
             </Card>
 
-            {/* Helper Rail */}
             <Card className="mt-4">
               <CardContent className="p-4">
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-primary" />
-                    Why this matters
-                  </h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {step === 1 && "You've been invited to share operational data with your investors. This streamlines monthly reporting."}
-                    {step === 2 && "Understanding what data is shared and who can see it builds trust and transparency."}
-                    {step === 3 && "Accurate company details ensure proper reporting structure and stakeholder alignment."}
-                    {step === 4 && "Connecting data sources once eliminates manual data entry every month."}
-                    {step === 5 && "Validating metric mappings ensures investors see accurate, trustworthy numbers."}
-                    {step === 6 && "You control what's visible to investors vs. what stays internal."}
-                    {step === 7 && "Inviting your team enables collaborative reporting and data validation."}
-                    {step === 8 && "Preview helps you see exactly what investors will see before going live."}
-                    {step === 9 && "Configure reporting cadence and automation to save time monthly."}
-                    {step === 10 && "You're all set! Your automated reporting workspace is ready."}
-                  </p>
-                </div>
+                <h3 className="text-sm font-semibold flex items-center gap-2 mb-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  Why This Matters
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{HELPER_COPY[step]}</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Main Content */}
           <div className="lg:col-span-3">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  {React.createElement(steps[step - 1].icon, { className: "h-5 w-5" })}
+                  {React.createElement(steps[step - 1].icon, { className: 'h-5 w-5' })}
                   {steps[step - 1].title}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Step 1: Accept Invitation */}
-                {step === 1 && (
-                  <div className="space-y-6">
-                    <div className="text-center py-6">
-                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-                        <CheckCircle2 className="h-8 w-8 text-primary" />
-                      </div>
-                      <h2 className="text-2xl font-semibold mb-2">You're Invited!</h2>
-                      <p className="text-muted-foreground max-w-md mx-auto">
-                        {formData.invitedBy} has invited you to join their portfolio monitoring platform
-                      </p>
-                    </div>
-                    
-                    <div className="max-w-md mx-auto space-y-4">
-                      <div className="p-4 border rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm text-muted-foreground">Invited by</span>
-                          <Badge>{formData.invitedBy}</Badge>
-                        </div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm text-muted-foreground">Company</span>
-                          <span className="font-medium">{formData.companyName}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground">Your Role</span>
-                          <Badge variant="outline">{formData.role}</Badge>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                        <p className="text-sm font-medium">What you can do:</p>
-                        <ul className="space-y-1 text-sm text-muted-foreground">
-                          <li className="flex items-start gap-2">
-                            <Check className="h-4 w-4 text-success shrink-0 mt-0.5" />
-                            <span>Submit monthly investor updates automatically</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <Check className="h-4 w-4 text-success shrink-0 mt-0.5" />
-                            <span>Connect your tools for automated data sync</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <Check className="h-4 w-4 text-success shrink-0 mt-0.5" />
-                            <span>Control what data is shared with investors</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <Check className="h-4 w-4 text-success shrink-0 mt-0.5" />
-                            <span>Chat directly with investors and board members</span>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {renderStepContent()}
 
-                {/* Step 2: Trust & Consent */}
-                {step === 2 && (
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-2">Trust & Data Sharing</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Understanding what data is shared and who can see it
-                      </p>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <Card className="border-primary/30">
-                        <CardHeader>
-                          <CardTitle className="text-base">What Data Will Be Synced</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <div className="flex items-start gap-3">
-                            <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium">Financial Metrics</p>
-                              <p className="text-xs text-muted-foreground">Revenue, cash, burn rate from connected accounting tools</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <CheckCircle2 className="h-5 w-5 text-success shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium">GTM Metrics</p>
-                              <p className="text-xs text-muted-foreground">Pipeline, customers, growth from CRM</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <Lock className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium">Internal Notes</p>
-                              <p className="text-xs text-muted-foreground">Your private notes remain private</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-base">Who Can See What</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Data Type</TableHead>
-                                <TableHead>Investors</TableHead>
-                                <TableHead>Your Team</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              <TableRow>
-                                <TableCell>Financial Metrics</TableCell>
-                                <TableCell><Check className="h-4 w-4 text-success" /></TableCell>
-                                <TableCell><Check className="h-4 w-4 text-success" /></TableCell>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell>Sprint Details</TableCell>
-                                <TableCell className="text-muted-foreground">Summary only</TableCell>
-                                <TableCell><Check className="h-4 w-4 text-success" /></TableCell>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell>Internal Notes</TableCell>
-                                <TableCell>-</TableCell>
-                                <TableCell><Check className="h-4 w-4 text-success" /></TableCell>
-                              </TableRow>
-                            </TableBody>
-                          </Table>
-                        </CardContent>
-                      </Card>
-                      
-                      <div className="space-y-3">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="understood"
-                            checked={formData.understoodDataSharing}
-                            onCheckedChange={(checked) => 
-                              setFormData(prev => ({ ...prev, understoodDataSharing: checked }))
-                            }
-                          />
-                          <Label htmlFor="understood" className="text-sm cursor-pointer">
-                            I understand what data will be shared with investors
-                          </Label>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="reviewed"
-                            checked={formData.reviewedVisibility}
-                            onCheckedChange={(checked) => 
-                              setFormData(prev => ({ ...prev, reviewedVisibility: checked }))
-                            }
-                          />
-                          <Label htmlFor="reviewed" className="text-sm cursor-pointer">
-                            I have reviewed the visibility settings
-                          </Label>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 3: Company Details */}
-                {step === 3 && (
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-2">Confirm Company Details</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Review the information provided by {formData.invitedBy}. You can edit any field if needed.
-                      </p>
-                    </div>
-                    
-                    <div className="bg-primary/10 rounded-lg p-4 flex items-start gap-3 mb-4">
-                      <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">Pre-filled by your investor</p>
-                        <p className="text-xs text-muted-foreground">
-                          These details were added when you were invited. Please review and update if needed.
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="companyName">Company Name</Label>
-                        <Input
-                          id="companyName"
-                          placeholder="Your Company"
-                          value={formData.companyName}
-                          onChange={(e) => setFormData(prev => ({ ...prev, companyName: e.target.value }))}
-                          className="mt-2"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="website">Website</Label>
-                        <Input
-                          id="website"
-                          type="url"
-                          placeholder="https://yourcompany.com"
-                          value={formData.website}
-                          onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
-                          className="mt-2"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="sector">Sector</Label>
-                        <Input
-                          id="sector"
-                          placeholder="e.g., FinTech"
-                          value={formData.sector}
-                          onChange={(e) => setFormData(prev => ({ ...prev, sector: e.target.value }))}
-                          className="mt-2"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="hq">Headquarters</Label>
-                        <Input
-                          id="hq"
-                          placeholder="e.g., San Francisco, CA"
-                          value={formData.hq}
-                          onChange={(e) => setFormData(prev => ({ ...prev, hq: e.target.value }))}
-                          className="mt-2"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label>Stage</Label>
-                        <Select value={formData.stage} onValueChange={(v) => setFormData(prev => ({ ...prev, stage: v }))}>
-                          <SelectTrigger className="mt-2">
-                            <SelectValue placeholder="Select stage" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {STAGES.map(stage => (
-                              <SelectItem key={stage} value={stage}>{stage}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div>
-                        <Label>Business Model</Label>
-                        <Select value={formData.businessModel} onValueChange={(v) => setFormData(prev => ({ ...prev, businessModel: v }))}>
-                          <SelectTrigger className="mt-2">
-                            <SelectValue placeholder="Select model" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {BUSINESS_MODELS.map(model => (
-                              <SelectItem key={model} value={model}>{model}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="founders">Founders</Label>
-                        <Input
-                          id="founders"
-                          placeholder="e.g., John Doe, Jane Smith"
-                          value={formData.founders}
-                          onChange={(e) => setFormData(prev => ({ ...prev, founders: e.target.value }))}
-                          className="mt-2"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="contactEmail">Contact Email</Label>
-                        <Input
-                          id="contactEmail"
-                          type="email"
-                          placeholder="contact@company.com"
-                          value={formData.contactEmail}
-                          onChange={(e) => setFormData(prev => ({ ...prev, contactEmail: e.target.value }))}
-                          className="mt-2"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="reportingOwner">Reporting Owner</Label>
-                        <Input
-                          id="reportingOwner"
-                          placeholder="Name"
-                          value={formData.reportingOwner}
-                          onChange={(e) => setFormData(prev => ({ ...prev, reportingOwner: e.target.value }))}
-                          className="mt-2"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="financeOwner">Finance Owner</Label>
-                        <Input
-                          id="financeOwner"
-                          placeholder="Name"
-                          value={formData.financeOwner}
-                          onChange={(e) => setFormData(prev => ({ ...prev, financeOwner: e.target.value }))}
-                          className="mt-2"
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label>Reporting Cadence</Label>
-                        <Select value={formData.reportingCadence} onValueChange={(v) => setFormData(prev => ({ ...prev, reportingCadence: v }))}>
-                          <SelectTrigger className="mt-2">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="monthly">Monthly</SelectItem>
-                            <SelectItem value="quarterly">Quarterly</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 4: Connect Data Sources */}
-                {step === 4 && (
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-2">Connect Your Tools</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Connect once, automate forever. No more manual data entry.
-                      </p>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {integrationOptions.map(integration => {
-                        const isConnected = formData.connectedSources.includes(integration.id);
-                        return (
-                          <Card key={integration.id} className={isConnected ? 'border-success' : ''}>
-                            <CardContent className="p-4">
-                              <div className="flex items-start justify-between mb-3">
-                                <div>
-                                  <p className="font-medium">{integration.name}</p>
-                                  <p className="text-xs text-muted-foreground capitalize">{integration.type}</p>
-                                </div>
-                                {integration.required && (
-                                  <Badge variant="outline" className="text-xs">Required</Badge>
-                                )}
-                              </div>
-                              
-                              <p className="text-xs text-muted-foreground mb-3">
-                                Setup time: {integration.time}
-                              </p>
-                              
-                              <Button
-                                variant={isConnected ? 'outline' : 'default'}
-                                size="sm"
-                                className="w-full"
-                                onClick={() => !isConnected && handleConnectSource(integration.id)}
-                                disabled={isConnected}
-                              >
-                                {isConnected ? (
-                                  <><CheckCircle2 className="h-4 w-4 mr-2" /> Connected</>
-                                ) : (
-                                  <><LinkIcon className="h-4 w-4 mr-2" /> Connect</>
-                                )}
-                              </Button>
-                            </CardContent>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 5: Review Metrics */}
-                {step === 5 && (
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-2">Review Detected Metrics</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Validate that the mapped metrics are correct
-                      </p>
-                    </div>
-                    
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Source Metric</TableHead>
-                          <TableHead>Mapped To</TableHead>
-                          <TableHead>Latest Value</TableHead>
-                          <TableHead>Confidence</TableHead>
-                          <TableHead className="text-center">Approve</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {formData.metricMappings.map((mapping, idx) => (
-                          <TableRow key={idx}>
-                            <TableCell className="font-medium">{mapping.source}</TableCell>
-                            <TableCell>{mapping.mapped}</TableCell>
-                            <TableCell className="font-mono">{mapping.value}</TableCell>
-                            <TableCell>
-                              <Badge variant={mapping.confidence === 'high' ? 'default' : 'outline'}>
-                                {mapping.confidence}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Checkbox
-                                checked={mapping.approved}
-                                onCheckedChange={() => handleApproveMapping(idx)}
-                              />
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-
-                {/* Step 6: Sharing Preferences */}
-                {step === 6 && (
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-2">Control What's Shared</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Decide what metrics are visible to investors vs. what stays internal
-                      </p>
-                    </div>
-                    
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Metric</TableHead>
-                          <TableHead className="text-center">Investors</TableHead>
-                          <TableHead className="text-center">Internal</TableHead>
-                          <TableHead className="text-center">Updates</TableHead>
-                          <TableHead className="text-center">Board</TableHead>
-                          <TableHead className="text-center">Dashboard</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {Object.entries(formData.sharingPreferences).map(([key, prefs]) => (
-                          <TableRow key={key}>
-                            <TableCell className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</TableCell>
-                            <TableCell className="text-center">
-                              <Switch
-                                checked={prefs.investors}
-                                onCheckedChange={(checked) => 
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    sharingPreferences: {
-                                      ...prev.sharingPreferences,
-                                      [key]: { ...prefs, investors: checked }
-                                    }
-                                  }))
-                                }
-                              />
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Switch
-                                checked={prefs.internal}
-                                onCheckedChange={(checked) => 
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    sharingPreferences: {
-                                      ...prev.sharingPreferences,
-                                      [key]: { ...prefs, internal: checked }
-                                    }
-                                  }))
-                                }
-                              />
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Switch
-                                checked={prefs.update}
-                                onCheckedChange={(checked) => 
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    sharingPreferences: {
-                                      ...prev.sharingPreferences,
-                                      [key]: { ...prefs, update: checked }
-                                    }
-                                  }))
-                                }
-                              />
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Switch
-                                checked={prefs.board}
-                                onCheckedChange={(checked) => 
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    sharingPreferences: {
-                                      ...prev.sharingPreferences,
-                                      [key]: { ...prefs, board: checked }
-                                    }
-                                  }))
-                                }
-                              />
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Switch
-                                checked={prefs.dashboard}
-                                onCheckedChange={(checked) => 
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    sharingPreferences: {
-                                      ...prev.sharingPreferences,
-                                      [key]: { ...prefs, dashboard: checked }
-                                    }
-                                  }))
-                                }
-                              />
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-
-                {/* Step 7: Invite Team */}
-                {step === 7 && (
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-2">Invite Your Team</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Collaborate with team members on reporting and data validation
-                      </p>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="teamEmail">Email Address</Label>
-                          <Input
-                            id="teamEmail"
-                            type="email"
-                            placeholder="colleague@company.com"
-                            value={teamEmail}
-                            onChange={(e) => setTeamEmail(e.target.value)}
-                            className="mt-2"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="teamRole">Role</Label>
-                          <Select value={teamRole} onValueChange={setTeamRole}>
-                            <SelectTrigger className="mt-2" id="teamRole">
-                              <SelectValue placeholder="Select role" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="editor">Editor</SelectItem>
-                              <SelectItem value="viewer">Viewer</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      
-                      <Button 
-                        variant="outline" 
-                        className="w-full"
-                        onClick={handleAddTeamMember}
-                        type="button"
-                      >
-                        <Users className="h-4 w-4 mr-2" />
-                        Add Team Member
-                      </Button>
-                      
-                      {formData.teamMembers.length > 0 ? (
-                        <Card>
-                          <CardContent className="p-4 space-y-3">
-                            <p className="text-sm font-medium">
-                              {formData.teamMembers.length} team member(s) invited
-                            </p>
-                            <div className="space-y-2">
-                              {formData.teamMembers.map((member) => (
-                                <div 
-                                  key={member.id}
-                                  className="flex items-center justify-between p-3 border rounded-lg bg-background"
-                                >
-                                  <div className="flex-1">
-                                    <p className="text-sm font-medium">{member.email}</p>
-                                    <p className="text-xs text-muted-foreground capitalize">{member.role}</p>
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleRemoveTeamMember(member.id)}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ) : (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          You can invite team members later from your workspace
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 8: Dashboard Preview */}
-                {step === 8 && (
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-2">Dashboard Preview</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Here's what investors will see on your company dashboard
-                      </p>
-                    </div>
-                    
-                    <div className="border rounded-lg p-6 bg-muted/20">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <Card>
-                          <CardContent className="p-4">
-                            <p className="text-xs text-muted-foreground mb-1">Monthly Revenue</p>
-                            <p className="text-2xl font-bold">$125K</p>
-                            <p className="text-xs text-success">↑ 23% MoM</p>
-                          </CardContent>
-                        </Card>
-                        <Card>
-                          <CardContent className="p-4">
-                            <p className="text-xs text-muted-foreground mb-1">Cash Balance</p>
-                            <p className="text-2xl font-bold">$1.5M</p>
-                            <p className="text-xs text-muted-foreground">15 months runway</p>
-                          </CardContent>
-                        </Card>
-                        <Card>
-                          <CardContent className="p-4">
-                            <p className="text-xs text-muted-foreground mb-1">Pipeline Value</p>
-                            <p className="text-2xl font-bold">$450K</p>
-                            <p className="text-xs text-success">↑ 12% WoW</p>
-                          </CardContent>
-                        </Card>
-                      </div>
-                      
-                      <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                        <Eye className="h-4 w-4" />
-                        <span>Live data from your connected sources</span>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-primary/10 rounded-lg p-4 flex items-start gap-3">
-                      <Shield className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">Your data is secure</p>
-                        <p className="text-xs text-muted-foreground">
-                          Only metrics you've approved are visible. You can change visibility settings anytime.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 9: Reporting Setup */}
-                {step === 9 && (
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-2">Reporting Schedule</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Configure when and how reports are generated
-                      </p>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="reportDueDate">Monthly Report Due Date</Label>
-                        <Select 
-                          value={String(formData.reportDueDate)} 
-                          onValueChange={(v) => setFormData(prev => ({ ...prev, reportDueDate: parseInt(v) }))}
-                        >
-                          <SelectTrigger className="mt-2" id="reportDueDate">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[1, 5, 10, 15, 20].map(day => (
-                              <SelectItem key={day} value={String(day)}>
-                                Day {day} of each month
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="reminderSchedule">Reminder Schedule</Label>
-                        <Select 
-                          value={formData.reminderSchedule} 
-                          onValueChange={(v) => setFormData(prev => ({ ...prev, reminderSchedule: v }))}
-                        >
-                          <SelectTrigger className="mt-2" id="reminderSchedule">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1_day">1 day before</SelectItem>
-                            <SelectItem value="3_days">3 days before</SelectItem>
-                            <SelectItem value="1_week">1 week before</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div>
-                        <Label htmlFor="boardReportFreq">Board Report Frequency</Label>
-                        <Select 
-                          value={formData.boardReportFreq} 
-                          onValueChange={(v) => setFormData(prev => ({ ...prev, boardReportFreq: v }))}
-                        >
-                          <SelectTrigger className="mt-2" id="boardReportFreq">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="monthly">Monthly</SelectItem>
-                            <SelectItem value="quarterly">Quarterly</SelectItem>
-                            <SelectItem value="custom">Custom</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <p className="text-sm font-medium">Auto-generate draft reports</p>
-                          <p className="text-xs text-muted-foreground">
-                            We'll create a draft based on your metrics for you to review
-                          </p>
-                        </div>
-                        <Switch
-                          checked={formData.autoGenerateDrafts}
-                          onCheckedChange={(checked) => 
-                            setFormData(prev => ({ ...prev, autoGenerateDrafts: checked }))
-                          }
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 10: Complete */}
-                {step === 10 && (
-                  <div className="space-y-6 py-6">
-                    <div className="text-center space-y-3">
-                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-success/10 mb-4">
-                        <Sparkles className="h-8 w-8 text-success" />
-                      </div>
-                      <h2 className="text-2xl font-semibold">Setup Complete! 🎉</h2>
-                      <p className="text-muted-foreground max-w-md mx-auto">
-                        Your Founder Workspace is ready. Start exploring your dashboard and let us handle the reporting.
-                      </p>
-                    </div>
-                    
-                    <Card className="bg-muted/50">
-                      <CardContent className="p-6 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Building2 className="h-5 w-5 text-muted-foreground" />
-                            <span className="font-medium">Company</span>
-                          </div>
-                          <span className="text-sm">{formData.companyName}</span>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <LinkIcon className="h-5 w-5 text-muted-foreground" />
-                            <span className="font-medium">Connected Sources</span>
-                          </div>
-                          <span className="text-sm">{formData.connectedSources.length} active</span>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <BarChart3 className="h-5 w-5 text-muted-foreground" />
-                            <span className="font-medium">Metrics Mapped</span>
-                          </div>
-                          <span className="text-sm">{formData.metricMappings.length} approved</span>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-muted-foreground" />
-                            <span className="font-medium">Reporting</span>
-                          </div>
-                          <span className="text-sm capitalize">{formData.reportingCadence}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    
-                    <div className="bg-primary/10 rounded-lg p-4">
-                      <p className="text-sm font-medium mb-2">What happens next?</p>
-                      <ul className="space-y-1 text-sm text-muted-foreground">
-                        <li className="flex items-start gap-2">
-                          <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                          <span>We'll sync your data from connected sources</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                          <span>Auto-generate your first draft report before the due date</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                          <span>Send you a reminder {formData.reminderSchedule.replace('_', ' ')}</span>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                )}
-
-                {/* Navigation */}
                 <div className="flex items-center justify-between pt-6 border-t">
-                  <Button
-                    variant="outline"
-                    onClick={handleBack}
-                    disabled={step === 1}
-                  >
+                  <Button variant="outline" onClick={handleBack} disabled={step === 1 || loading}>
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Back
                   </Button>
-                  
-                  <Button onClick={handleNext}>
-                    {step === totalSteps ? (
-                      <>Complete Setup<CheckCircle2 className="h-4 w-4 ml-2" /></>
+
+                  <Button onClick={handleNext} disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : step === totalSteps ? (
+                      <>
+                        Complete Setup
+                        <CheckCircle2 className="h-4 w-4 ml-2" />
+                      </>
                     ) : (
-                      <>Continue<ArrowRight className="h-4 w-4 ml-2" /></>
+                      <>
+                        Next
+                        <ArrowRight className="h-4 w-4 ml-2" />
+                      </>
                     )}
                   </Button>
                 </div>

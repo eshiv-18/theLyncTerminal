@@ -222,7 +222,7 @@ const LiveFeedPage = () => {
                       <h3 className="text-lg font-semibold mb-2">No activities</h3>
                       <p className="text-sm text-muted-foreground">
                         {activities.length === 0 
-                          ? "No activities recorded yet"
+                          ? "No real activity has been recorded for this portfolio yet"
                           : `No ${activeFilter !== 'all' ? activeFilter : ''} activities to show`}
                       </p>
                     </div>
@@ -287,9 +287,8 @@ const LiveFeedPage = () => {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            The activity feed monitors real-time events across your portfolio including alerts, 
-            report submissions, integration syncs, and system events. Activities are automatically 
-            logged and categorized for easy tracking.
+            This feed shows activity returned by the backend for startups in your workspace only.
+            If nothing appears here, there is currently no recorded portfolio activity rather than a mocked fallback.
           </p>
         </CardContent>
       </Card>

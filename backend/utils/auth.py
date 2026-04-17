@@ -15,7 +15,7 @@ load_dotenv(Path(__file__).parent.parent / '.env')
 logger = logging.getLogger(__name__)
 
 # JWT Configuration
-SECRET_KEY = os.environ.get("SECRET_KEY")
+SECRET_KEY = os.environ.get('JWT_SECRET')
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable must be set! Generate one with: python -c 'import secrets; print(secrets.token_urlsafe(32))'")
 

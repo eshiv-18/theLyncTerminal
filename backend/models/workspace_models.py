@@ -13,13 +13,13 @@ class WorkspaceCreate(BaseModel):
     """Admin creates workspace during onboarding"""
     # Step 1: Welcome
     org_name: str = Field(..., min_length=2, max_length=200)
-    user_name: str = Field(..., min_length=2, max_length=100)
+    user_name: str = Field(default='', max_length=100)
     email: EmailStr
-    country: str
-    use_case: str  # vc_fund, accelerator, family_office, angel_network
+    country: str = Field(default='')
+    use_case: str = Field(default='')  # vc_fund, accelerator, family_office, angel_network
     
     # Step 2: Workspace Settings
-    fund_name: str
+    fund_name: str = Field(default='')
     logo_url: Optional[str] = None
     currency: str = "USD"
     reporting_frequency: str = "monthly"  # monthly, quarterly

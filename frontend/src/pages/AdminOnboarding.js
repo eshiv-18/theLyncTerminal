@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,9 +42,11 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const AdminOnboarding = () => {
   const navigate = useNavigate();
+  const { user, completeOnboarding, refreshUser } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [workspaceId, setWorkspaceId] = useState(null);
@@ -75,7 +77,11 @@ const AdminOnboarding = () => {
     companies: [],
     
     // Step 5 - Founder Invites
-    founderInvites: {},
+    founderInvites: {
+      sendNow: true,
+      requestIntegrations: true,
+      welcomeNote: '',
+    },
     
     // Step 6 - Metrics
     healthScoreTemplate: 'balanced',
@@ -85,6 +91,18 @@ const AdminOnboarding = () => {
     alertRecipients: ['admin', 'partners'],
     founderCanEdit: true
   });
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      userName: prev.userName || user.name || '',
+      email: prev.email || user.email || '',
+    }));
+  }, [user]);
 
   const progress = (step / totalSteps) * 100;
 
@@ -98,10 +116,46 @@ const AdminOnboarding = () => {
   ];
 
   const handleNext = async () => {
-    // Validate current step
-    if (step === 1 && (!formData.orgName || !formData.email)) {
-      toast.error('Please fill required fields');
-      return;
+    // Per-step validation
+    if (step === 1) {
+      if (!formData.orgName || formData.orgName.trim().length < 2) {
+        toast.error('Please enter your Organization / Fund Name (min 2 characters)');
+        return;
+      }
+      if (!formData.userName || formData.userName.trim().length < 2) {
+        toast.error('Please enter your name');
+        return;
+      }
+      if (!formData.email || formData.email.trim().length < 3) {
+        toast.error('Please enter a valid work email');
+        return;
+      }
+      if (!formData.useCase) {
+        toast.error('Please select your primary use case');
+        return;
+      }
+    }
+
+    if (step === 3) {
+      const hasIncompleteTeamMember = formData.teamMembers.some(
+        (member) => (member.name.trim() || member.email.trim()) && (!member.name.trim() || !member.email.trim())
+      );
+
+      if (hasIncompleteTeamMember) {
+        toast.error('Please complete or remove partially added team members');
+        return;
+      }
+    }
+
+    if (step === 4) {
+      const hasIncompleteCompany = formData.companies.some(
+        (company) => !company.name.trim() || !company.stage || !company.founderName.trim() || !company.founderEmail.trim()
+      );
+
+      if (hasIncompleteCompany) {
+        toast.error('Please complete each company row before continuing');
+        return;
+      }
     }
     
     if (step < totalSteps) {
@@ -133,29 +187,62 @@ const AdminOnboarding = () => {
         };
         
         const workspaceResponse = await api.adminOnboarding.createWorkspace(workspaceData);
-        toast.success('✅ Workspace created!');
+        const workspaceId = workspaceResponse.data.id;
+        toast.success('Workspace created!');
         
-        if (formData.teamMembers.length > 0) {
+        const teamMembersToInvite = formData.teamMembers
+          .filter((member) => member.name.trim() && member.email.trim())
+          .map((member) => ({
+            email: member.email.trim(),
+            name: member.name.trim(),
+            role: member.role,
+            permissions: {
+              view_portfolio: true,
+              edit_companies: ['admin', 'partner', 'principal'].includes(member.role),
+              invite_team: member.role === 'admin',
+              manage_settings: member.role === 'admin'
+            }
+          }));
+
+        if (teamMembersToInvite.length > 0) {
           await api.adminOnboarding.inviteTeamMembers({
-            workspace_id: workspaceResponse.data.id,
-            members: formData.teamMembers
+            workspace_id: workspaceId,
+            members: teamMembersToInvite
           });
         }
         
-        if (formData.companies.length > 0) {
+        const companiesToImport = formData.companies.map((company) => ({
+          name: company.name.trim(),
+          sector: company.sector.trim(),
+          stage: company.stage,
+          founder_name: company.founderName.trim(),
+          founder_email: company.founderEmail.trim(),
+          website: company.website?.trim() || undefined
+        }));
+
+        if (companiesToImport.length > 0) {
           await api.adminOnboarding.bulkImportCompanies({
-            workspace_id: workspaceResponse.data.id,
-            companies: formData.companies,
+            workspace_id: workspaceId,
+            companies: companiesToImport,
             send_founder_invites: false
           });
         }
         
-        toast.success('🎉 Onboarding complete!');
-        setTimeout(() => navigate('/portfolio'), 2000);
+        toast.success('Onboarding complete!');
+        
+        // Mark onboarding as completed in auth system
+        try {
+          await completeOnboarding();
+        } catch (e) {
+          console.error('Failed to mark onboarding complete:', e);
+        }
+        await refreshUser();
+
+        navigate('/portfolio', { replace: true });
         
       } catch (error) {
         console.error('Onboarding error:', error);
-        toast.error(error.response?.data?.detail || 'Failed to complete onboarding');
+        toast.error(error.message || 'Failed to complete onboarding');
       } finally {
         setLoading(false);
       }
@@ -200,7 +287,9 @@ const AdminOnboarding = () => {
           name: '',
           sector: '',
           stage: '',
+          founderName: '',
           founderEmail: '',
+          website: '',
           status: 'active'
         }
       ]
@@ -597,6 +686,7 @@ const AdminOnboarding = () => {
                               <TableHead>Company Name</TableHead>
                               <TableHead>Sector</TableHead>
                               <TableHead>Stage</TableHead>
+                              <TableHead>Founder Name</TableHead>
                               <TableHead>Founder Email</TableHead>
                               <TableHead></TableHead>
                             </TableRow>
@@ -664,6 +754,21 @@ const AdminOnboarding = () => {
                                 </TableCell>
                                 <TableCell>
                                   <Input
+                                    value={company.founderName}
+                                    placeholder="Founder name"
+                                    className="h-8"
+                                    onChange={(e) => {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        companies: prev.companies.map(c =>
+                                          c.id === company.id ? { ...c, founderName: e.target.value } : c
+                                        )
+                                      }));
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
                                     type="email"
                                     value={company.founderEmail}
                                     placeholder="founder@startup.com"
@@ -725,7 +830,16 @@ const AdminOnboarding = () => {
                             {formData.companies.length} companies ready to invite
                           </p>
                         </div>
-                        <Checkbox defaultChecked />
+                        <Checkbox
+                          checked={formData.founderInvites.sendNow}
+                          onCheckedChange={(checked) => setFormData(prev => ({
+                            ...prev,
+                            founderInvites: {
+                              ...prev.founderInvites,
+                              sendNow: checked === true
+                            }
+                          }))}
+                        />
                       </div>
                       
                       <div className="flex items-center justify-between">
@@ -733,13 +847,30 @@ const AdminOnboarding = () => {
                           <p className="font-medium">Request integrations</p>
                           <p className="text-sm text-muted-foreground">Ask founders to connect data sources</p>
                         </div>
-                        <Checkbox defaultChecked />
+                        <Checkbox
+                          checked={formData.founderInvites.requestIntegrations}
+                          onCheckedChange={(checked) => setFormData(prev => ({
+                            ...prev,
+                            founderInvites: {
+                              ...prev.founderInvites,
+                              requestIntegrations: checked === true
+                            }
+                          }))}
+                        />
                       </div>
                       
                       <div>
                         <Label htmlFor="welcomeNote">Welcome Message (optional)</Label>
                         <Textarea
                           id="welcomeNote"
+                          value={formData.founderInvites.welcomeNote}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            founderInvites: {
+                              ...prev.founderInvites,
+                              welcomeNote: e.target.value
+                            }
+                          }))}
                           placeholder="Add a personal message for your founders..."
                           className="mt-2"
                           rows={3}
@@ -836,14 +967,13 @@ const AdminOnboarding = () => {
                     Back
                   </Button>
                   
-                  <Button onClick={handleNext}>
-                    {step === totalSteps ? (
-                      <>Complete Setup<CheckCircle2 className="h-4 w-4 ml-2" /></>
+                  <Button onClick={handleNext} disabled={loading}>
+                    {loading ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Setting up...</>
+                    ) : step === totalSteps ? (
+                      <><CheckCircle2 className="h-4 w-4 mr-2" />Complete Setup</>
                     ) : (
-                      <>
-                        Continue
-                        <ArrowRight className="h-4 w-4 ml-2" />
-                      </>
+                      <>Continue<ArrowRight className="h-4 w-4 ml-2" /></>
                     )}
                   </Button>
                 </div>
@@ -857,3 +987,4 @@ const AdminOnboarding = () => {
 };
 
 export default AdminOnboarding;
+

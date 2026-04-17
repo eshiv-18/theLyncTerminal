@@ -10,7 +10,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import PortfolioDashboard from '@/pages/PortfolioDashboard';
 import StartupDetail from '@/pages/StartupDetail';
-import FounderWorkspace from '@/pages/FounderWorkspace';
+// import FounderWorkspace from '@/pages/FounderWorkspace';
 import EnhancedFounderOnboarding from '@/pages/EnhancedFounderOnboarding';
 import AlertsPage from '@/pages/AlertsPage';
 import ReportsPage from '@/pages/ReportsPage';
@@ -21,6 +21,7 @@ import AdminOnboarding from '@/pages/AdminOnboarding';
 import IntegrationsPage from '@/pages/IntegrationsPage';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import TermsOfService from '@/pages/TermsOfService';
+import FounderHome from './pages/FounderHome';
 import '@/App.css';
 
 function App() {
@@ -39,7 +40,7 @@ function App() {
             {/* Default redirect to login */}
             <Route path="/" element={<Navigate to="/login" replace />} />
             
-            {/* Onboarding */}
+            {/* Onboarding - these routes are excluded from the onboarding redirect check */}
             <Route 
               path="/onboarding" 
               element={
@@ -51,7 +52,7 @@ function App() {
             <Route 
               path="/founder/onboarding" 
               element={
-                <ProtectedRoute allowedRoles={['founder']}>
+                <ProtectedRoute>
                   <EnhancedFounderOnboarding />
                 </ProtectedRoute>
               } 
@@ -59,7 +60,7 @@ function App() {
             <Route 
               path="/admin/onboarding" 
               element={
-                <ProtectedRoute allowedRoles={['admin']}>
+                <ProtectedRoute allowedRoles={['admin', 'investor']}>
                   <AdminOnboarding />
                 </ProtectedRoute>
               } 
@@ -138,7 +139,7 @@ function App() {
                 path="/founder" 
                 element={
                   <ProtectedRoute allowedRoles={['founder']}>
-                    <FounderWorkspace />
+                    <FounderHome />
                   </ProtectedRoute>
                 } 
               />

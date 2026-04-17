@@ -3,7 +3,24 @@
  * Handles all auth-related API calls and token management
  */
 
-const API_URL = process.env.REACT_APP_BACKEND_URL;
+const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+
+/**
+ * Safely extract an error message from a fetch Response.
+ * Handles both JSON and non-JSON (HTML 404 pages etc.) bodies.
+ */
+async function safeErrorMessage(response, fallback) {
+  try {
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = await response.json();
+      return data.detail || fallback;
+    }
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 class AuthService {
   /**
@@ -19,8 +36,8 @@ class AuthService {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Login failed');
+      const msg = await safeErrorMessage(response, 'Login failed');
+      throw new Error(msg);
     }
 
     const data = await response.json();
@@ -49,12 +66,58 @@ class AuthService {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.detail || 'Registration failed');
+      const msg = await safeErrorMessage(response, 'Registration failed');
+      throw new Error(msg);
     }
 
     const user = await response.json();
     return user;
+  }
+
+  /**
+   * Register and automatically login the new user
+   * Returns both user data and tokens for immediate access
+   */
+  async registerAndLogin(userData) {
+    // First register
+    await this.register(userData);
+    
+    // Then automatically login with the same credentials
+    const result = await this.login(userData.email, userData.password);
+    return result;
+  }
+
+  /**
+   * Mark onboarding as completed for current user
+   */
+  async completeOnboarding() {
+    const token = this.getAccessToken();
+    
+    if (!token) {
+      throw new Error('No access token');
+    }
+
+    const response = await fetch(`${API_URL}/api/auth/complete-onboarding`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const msg = await safeErrorMessage(response, 'Failed to complete onboarding');
+      throw new Error(msg);
+    }
+
+    // Update stored user data
+    const storedUser = this.getStoredUser();
+    if (storedUser) {
+      storedUser.onboarding_completed = true;
+      localStorage.setItem('user', JSON.stringify(storedUser));
+    }
+
+    return response.json();
   }
 
   /**
@@ -110,7 +173,8 @@ class AuthService {
 
     if (!response.ok) {
       this.logout();
-      throw new Error('Token refresh failed');
+      const msg = await safeErrorMessage(response, 'Token refresh failed');
+      throw new Error(msg);
     }
 
     const data = await response.json();

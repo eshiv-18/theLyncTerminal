@@ -7,7 +7,7 @@ import axios from 'axios';
 import authService from './authService';
 import { toast } from 'sonner';
 
-const API_URL = process.env.REACT_APP_BACKEND_URL;
+const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 
 // Create axios instance
 const apiClient = axios.create({
@@ -66,7 +66,13 @@ apiClient.interceptors.response.use(
     }
 
     // Better error messages for common status codes
-    const errorMessage = error.response?.data?.detail || getErrorMessage(error.response?.status);
+    // Pydantic v2 returns `detail` as an array of validation error objects on 422
+    const rawDetail = error.response?.data?.detail;
+    const errorMessage = rawDetail
+      ? (Array.isArray(rawDetail)
+          ? rawDetail.map((e) => e.msg || JSON.stringify(e)).join('; ')
+          : String(rawDetail))
+      : getErrorMessage(error.response?.status);
     error.message = errorMessage;
 
     return Promise.reject(error);
@@ -113,6 +119,9 @@ const api = {
     
     logout: () => 
       apiClient.post('/api/auth/logout'),
+    
+    completeOnboarding: () => 
+      apiClient.post('/api/auth/complete-onboarding'),
   },
 
   // ============ Portfolio APIs ============
@@ -230,6 +239,9 @@ const api = {
     
     dismiss: (id) => 
       apiClient.delete(`/api/alerts/${id}`),
+    
+    markAllAsRead: () => 
+      apiClient.post('/api/alerts/read-all'),
   },
 
   // ============ Reports APIs ============
@@ -245,6 +257,22 @@ const api = {
     
     update: (id, reportData) => 
       apiClient.put(`/api/reports/${id}`, reportData),
+    
+    exportPDF: async (reportId) => {
+      const response = await apiClient.get(`/api/reports/${reportId}/export/pdf`, {
+        responseType: 'blob'
+      });
+      // Create blob link to download
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `report_${reportId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      return response;
+    }
   },
 
   // ============ Admin Onboarding APIs ============
@@ -270,67 +298,24 @@ const api = {
     completeOnboarding: (data) => 
       apiClient.post('/api/founder/onboarding/complete', data),
     
+    // NEW: Save onboarding for self-registered founders
+    saveOnboarding: (data) =>
+      apiClient.post('/api/founder/onboarding/save', data),
+    
     getOnboardingStatus: (startupId) => 
       apiClient.get(`/api/founder/onboarding/status/${startupId}`),
-  },
-
-  // ============ Alerts APIs ============
-  alerts: {
-    getAlerts: (params) => 
-      apiClient.get('/api/alerts', { params }),
     
-    markAsRead: (alertId) => 
-      apiClient.post(`/api/alerts/${alertId}/read`),
-    
-    markAllAsRead: () => 
-      apiClient.post('/api/alerts/read-all'),
-  },
-
-  // ============ Reports APIs ============
-  reports: {
-    getReports: (params) => 
-      apiClient.get('/api/reports', { params }),
-    
-    getReport: (reportId) => 
-      apiClient.get(`/api/reports/${reportId}`),
-    
-    createReport: (data) => 
-      apiClient.post('/api/reports', data),
-    
-    updateReport: (reportId, data) => 
-      apiClient.put(`/api/reports/${reportId}`, data),
-    
-    exportPDF: async (reportId) => {
-      const response = await apiClient.get(`/api/reports/${reportId}/export/pdf`, {
-        responseType: 'blob'
-      });
-      // Create blob link to download
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `report_${reportId}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      return response;
-    }
+    getStartupData: () =>
+      apiClient.get('/api/founder/startup/data'),
   },
 
   // ============ Activity Feed APIs ============
   feed: {
-    getActivities: (params) => 
-      apiClient.get('/api/feed', { params }),
+    getActivities: (filters = {}) => 
+      apiClient.get('/api/feed', { params: filters }),
     
     createActivity: (data) => 
       apiClient.post('/api/feed/activity', data),
-  },
-
-
-  // ============ Feed APIs ============
-  feed: {
-    getActivities: (filters = {}) => 
-      apiClient.get('/api/feed', { params: filters }),
   },
 };
 

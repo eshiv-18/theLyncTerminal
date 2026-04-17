@@ -21,14 +21,9 @@ export const AuthProvider = ({ children }) => {
     const initAuth = async () => {
       try {
         if (authService.isAuthenticated()) {
-          const storedUser = authService.getStoredUser();
-          if (storedUser) {
-            setUser(storedUser);
-          } else {
-            // Fetch user data if not in localStorage
-            const userData = await authService.getCurrentUser();
-            setUser(userData);
-          }
+          // Fetch fresh user data from backend
+          const userData = await authService.getCurrentUser();
+          setUser(userData);
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
@@ -71,6 +66,53 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Register a new user and automatically log them in.
+   * Returns the logged-in user data with JWT tokens stored.
+   */
+  const registerAndLogin = async (userData) => {
+    try {
+      setError(null);
+      setLoading(true);
+      const { user: loggedInUser } = await authService.registerAndLogin(userData);
+      setUser(loggedInUser);
+      return loggedInUser;
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Mark the current user's onboarding as completed.
+   * Updates both backend and local state.
+   */
+  const completeOnboarding = async () => {
+    try {
+      await authService.completeOnboarding();
+      setUser(prev => prev ? { ...prev, onboarding_completed: true } : prev);
+    } catch (error) {
+      console.error('Complete onboarding error:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Refresh user data from backend (useful after onboarding)
+   */
+  const refreshUser = async () => {
+    try {
+      const userData = await authService.getCurrentUser();
+      setUser(userData);
+      return userData;
+    } catch (error) {
+      console.error('Refresh user error:', error);
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       await authService.logout();
@@ -94,10 +136,14 @@ export const AuthProvider = ({ children }) => {
     error,
     login,
     register,
+    registerAndLogin,
+    completeOnboarding,
+    refreshUser,
     logout,
     hasRole,
     hasAnyRole,
     isAuthenticated: !!user,
+    isOnboarded: !!user?.onboarding_completed,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

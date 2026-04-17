@@ -175,13 +175,7 @@ app.include_router(auth_router, prefix="/api")
 # Include Portfolio router
 app.include_router(portfolio_router, prefix="/api")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

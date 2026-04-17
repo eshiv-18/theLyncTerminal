@@ -20,7 +20,7 @@ from models.content_models import (
     Report, ReportCreate, ReportsResponse, ReportUpdate,
     Activity, FeedResponse
 )
-from models.user_models import TokenData
+from models.user_models import User
 from middleware.auth import get_current_user
 import logging
 
@@ -42,7 +42,7 @@ async def get_alerts(
     is_read: Optional[bool] = Query(None),
     limit: int = Query(50, le=100),
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get alerts for portfolio companies
@@ -94,7 +94,7 @@ async def get_alerts(
 async def mark_alert_read(
     alert_id: str,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Mark alert as read"""
     result = await db.alerts.update_one(
@@ -111,7 +111,7 @@ async def mark_alert_read(
 @router.post("/alerts/read-all")
 async def mark_all_alerts_read(
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Mark all alerts as read"""
     query = {}
@@ -145,7 +145,7 @@ async def get_reports(
     status: Optional[str] = Query(None),
     limit: int = Query(50, le=100),
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get reports
@@ -201,7 +201,7 @@ async def get_reports(
 async def create_report(
     report_data: ReportCreate,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Create new report (draft)"""
     # Verify startup exists
@@ -237,7 +237,7 @@ async def update_report(
     report_id: str,
     update_data: ReportUpdate,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Update report (submit, approve, or edit content)"""
     report = await db.reports.find_one({"id": report_id}, {"_id": 0})
@@ -272,7 +272,7 @@ async def update_report(
 async def get_report(
     report_id: str,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Get single report by ID"""
     report = await db.reports.find_one({"id": report_id}, {"_id": 0})
@@ -292,7 +292,7 @@ async def get_activity_feed(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, le=100),
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """
     Get activity feed
@@ -302,18 +302,44 @@ async def get_activity_feed(
     
     # Role-based filtering
     if current_user.role == "founder":
-        startup = await db.startups.find_one(
-            {"founder_email": current_user.email},
+        founder_startups = await db.startups.find(
+            {
+                "$or": [
+                    {"founder_id": current_user.id},
+                    {"founder_user_id": current_user.id},
+                    {"founder_email": current_user.email},
+                    {"id": current_user.organization_id}
+                ]
+            },
             {"_id": 0, "id": 1}
-        )
-        if startup:
-            query["startup_id"] = startup["id"]
-        else:
+        ).to_list(length=1000)
+
+        startup_ids = [startup["id"] for startup in founder_startups if startup.get("id")]
+        if not startup_ids:
             return FeedResponse(activities=[], total_count=0, page=page, page_size=page_size)
+        query["startup_id"] = {"$in": startup_ids}
+    elif current_user.role in ("admin", "investor"):
+        if not current_user.organization_id:
+            return FeedResponse(activities=[], total_count=0, page=page, page_size=page_size)
+
+        workspace_startups = await db.startups.find(
+            {"workspace_id": current_user.organization_id},
+            {"_id": 0, "id": 1}
+        ).to_list(length=5000)
+
+        startup_ids = [startup["id"] for startup in workspace_startups if startup.get("id")]
+        if not startup_ids:
+            return FeedResponse(activities=[], total_count=0, page=page, page_size=page_size)
+        query["startup_id"] = {"$in": startup_ids}
     
     # Apply filters
     if startup_id:
-        query["startup_id"] = startup_id
+        if isinstance(query.get("startup_id"), dict) and "$in" in query["startup_id"]:
+            if startup_id not in query["startup_id"]["$in"]:
+                return FeedResponse(activities=[], total_count=0, page=page, page_size=page_size)
+            query["startup_id"] = startup_id
+        else:
+            query["startup_id"] = startup_id
     if activity_type:
         query["type"] = activity_type
     
@@ -344,7 +370,7 @@ async def create_activity(
     startup_id: Optional[str] = None,
     metadata: dict = {},
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Create activity log entry"""
     startup_name = None
@@ -378,7 +404,7 @@ async def create_activity(
 async def export_report_pdf(
     report_id: str,
     db: AsyncIOMotorDatabase = Depends(get_db),
-    current_user: TokenData = Depends(get_current_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Export report as PDF"""
     # Get report
