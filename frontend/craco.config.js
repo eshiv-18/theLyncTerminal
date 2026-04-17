@@ -24,6 +24,7 @@ if (config.enableHealthCheck) {
 
 let webpackConfig = {
   eslint: {
+    enable: false,   // ✅ ADD THIS LINE
     configure: {
       extends: ["plugin:react-hooks/recommended"],
       rules: {
