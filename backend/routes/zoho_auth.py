@@ -65,7 +65,7 @@ async def initiate_oauth_flow(organization_id: str):
     auth_base = settings.zoho_api_domain.replace("www.zohoapis", "accounts.zoho")
     # Normalise: some settings already contain accounts.zoho.com
     if "zohoapis" in auth_base:
-        auth_base = "https://accounts.zoho.com"
+        auth_base = "https://accounts.zoho.in"
 
     auth_url = (
         f"{auth_base}/oauth/v2/auth?"
