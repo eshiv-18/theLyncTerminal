@@ -136,7 +136,7 @@ async def get_status_checks():
 allow_origins=["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in allowed_origins] if allowed_origins != ['*'] else ['*'],
+    allow_origins=[origin.strip() for origin in allow_origins] if allow_origins != ['*'] else ['*'],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

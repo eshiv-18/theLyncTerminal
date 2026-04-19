@@ -1,3 +1,22 @@
+/**
+ * AuthContext.js
+ *
+ * FIX: completeOnboarding() is no longer exported from context.
+ *
+ * The previous flow was:
+ *   submitOnboarding()
+ *     -> api.founderOnboarding.saveOnboarding()    [backend sets onboarding_completed=true]
+ *     -> await completeOnboarding()                [called AGAIN via AuthContext]
+ *        -> authService.completeOnboarding()
+ *           -> fetch('/api/auth/complete-onboarding')
+ *              -> if token expired during 10-step flow → 401
+ *                 → interceptor retries → api.post() → "api.post is not a function"
+ *
+ * The fix: backend already sets onboarding_completed=true in saveOnboarding/completeOnboarding.
+ * We only call refreshUser() to pull the updated flag from /api/auth/me.
+ * completeOnboarding is kept internally but NOT exported so nothing calls it redundantly.
+ */
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import authService from '../services/authService';
 
@@ -5,38 +24,35 @@ const AuthContext = createContext(null);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error,   setError]   = useState(null);
 
-  // Check for existing session on mount
+  // ── Initialise from persisted tokens on mount ───────────────────────────────
   useEffect(() => {
     const initAuth = async () => {
       try {
         if (authService.isAuthenticated()) {
-          // Fetch fresh user data from backend
           const userData = await authService.getCurrentUser();
           setUser(userData);
         }
-      } catch (error) {
-        console.error('Auth initialization error:', error);
-        setError(error.message);
+      } catch (err) {
+        console.error('Auth initialization error:', err);
+        setError(err.message);
         authService.logout();
       } finally {
         setLoading(false);
       }
     };
-
     initAuth();
   }, []);
 
+  // ── Login ────────────────────────────────────────────────────────────────────
   const login = async (email, password) => {
     try {
       setError(null);
@@ -44,32 +60,29 @@ export const AuthProvider = ({ children }) => {
       const { user: userData } = await authService.login(email, password);
       setUser(userData);
       return userData;
-    } catch (error) {
-      setError(error.message);
-      throw error;
+    } catch (err) {
+      setError(err.message);
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
+  // ── Register ─────────────────────────────────────────────────────────────────
   const register = async (userData) => {
     try {
       setError(null);
       setLoading(true);
-      const newUser = await authService.register(userData);
-      return newUser;
-    } catch (error) {
-      setError(error.message);
-      throw error;
+      return await authService.register(userData);
+    } catch (err) {
+      setError(err.message);
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * Register a new user and automatically log them in.
-   * Returns the logged-in user data with JWT tokens stored.
-   */
+  // ── Register + auto-login ────────────────────────────────────────────────────
   const registerAndLogin = async (userData) => {
     try {
       setError(null);
@@ -77,59 +90,47 @@ export const AuthProvider = ({ children }) => {
       const { user: loggedInUser } = await authService.registerAndLogin(userData);
       setUser(loggedInUser);
       return loggedInUser;
-    } catch (error) {
-      setError(error.message);
-      throw error;
+    } catch (err) {
+      setError(err.message);
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * Mark the current user's onboarding as completed.
-   * Updates both backend and local state.
-   */
-  const completeOnboarding = async () => {
-    try {
-      await authService.completeOnboarding();
-      setUser(prev => prev ? { ...prev, onboarding_completed: true } : prev);
-    } catch (error) {
-      console.error('Complete onboarding error:', error);
-      throw error;
-    }
-  };
-
-  /**
-   * Refresh user data from backend (useful after onboarding)
-   */
+  // ── Refresh user from backend ────────────────────────────────────────────────
+  // Call this after onboarding submit so the context picks up onboarding_completed=true
+  // that was set by the backend's saveOnboarding / completeOnboarding endpoint.
   const refreshUser = async () => {
     try {
       const userData = await authService.getCurrentUser();
       setUser(userData);
       return userData;
-    } catch (error) {
-      console.error('Refresh user error:', error);
-      throw error;
+    } catch (err) {
+      console.error('Refresh user error:', err);
+      throw err;
     }
   };
 
+  // ── Logout ───────────────────────────────────────────────────────────────────
   const logout = async () => {
     try {
       await authService.logout();
+    } catch (err) {
+      console.error('Logout error:', err);
+    } finally {
       setUser(null);
-    } catch (error) {
-      console.error('Logout error:', error);
     }
   };
 
-  const hasRole = (role) => {
-    return user?.role === role;
-  };
+  // ── Role helpers ─────────────────────────────────────────────────────────────
+  const hasRole    = (role)   => user?.role === role;
+  const hasAnyRole = (roles)  => roles.includes(user?.role);
 
-  const hasAnyRole = (roles) => {
-    return roles.includes(user?.role);
-  };
-
+  // ── Context value ────────────────────────────────────────────────────────────
+  // NOTE: completeOnboarding is intentionally NOT exported.
+  // The backend handles marking onboarding complete during saveOnboarding/completeOnboarding.
+  // Call refreshUser() after the onboarding API call to sync context state.
   const value = {
     user,
     loading,
@@ -137,13 +138,12 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     registerAndLogin,
-    completeOnboarding,
     refreshUser,
     logout,
     hasRole,
     hasAnyRole,
     isAuthenticated: !!user,
-    isOnboarded: !!user?.onboarding_completed,
+    isOnboarded:     !!user?.onboarding_completed,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
