@@ -46,15 +46,24 @@ class CreateOrderRequest(BaseModel):
 
 async def _save_credentials(organization_id: str, key_id: str, key_secret: str,
                              webhook_secret: Optional[str], is_live_mode: bool, db) -> dict:
-    """Shared logic for saving Razorpay credentials."""
-    # Validate credentials first
-    client = RazorpayClient(key_id=key_id, key_secret=key_secret)
-    try:
-        await client.get_payments(count=1)
-    except Exception as e:
+    """Shared logic for saving Razorpay credentials.
+    
+    FIX: Removed upfront credential validation (get_payments test call).
+    The test call was returning 400 for test-mode keys with no payment history,
+    blocking legitimate connects. Credentials are now saved immediately and
+    validated lazily on the first metrics/payments fetch.
+    Key format is still checked — must start with rzp_test_ or rzp_live_.
+    """
+    # Basic key format check only — don't make an API call to validate
+    if not key_id.startswith(('rzp_test_', 'rzp_live_')):
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid Razorpay credentials: {str(e)}"
+            detail="Invalid Razorpay Key ID format. Must start with rzp_test_ or rzp_live_"
+        )
+    if len(key_secret) < 10:
+        raise HTTPException(
+            status_code=400,
+            detail="Razorpay Key Secret appears too short. Please check your credentials."
         )
 
     existing = await db.razorpay_credentials.find_one({"organization_id": organization_id})
