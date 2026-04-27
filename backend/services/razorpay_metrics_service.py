@@ -44,7 +44,11 @@ class RazorpayMetricsService:
             
             # Fetch subscriptions
             logger.info("Fetching Razorpay subscriptions...")
-            subscriptions = await self.client.get_all_subscriptions(max_results=1000)
+            try:
+                subscriptions = await self.client.get_all_subscriptions(max_results=1000)
+            except Exception as e:
+                logger.warning(f"Subscriptions fetch failed: {str(e)}")
+                subscriptions = []
             
             # Fetch customers
             logger.info("Fetching Razorpay customers...")
@@ -105,7 +109,7 @@ class RazorpayMetricsService:
             method = payment.get("method", "unknown")
             
             # Count by status
-            if status == "captured":
+            if status in ["captured", "authorized"]:
                 successful_payments += 1
                 total_amount += amount
                 

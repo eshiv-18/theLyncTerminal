@@ -28,10 +28,10 @@ code {
         --popover: 0 0% 100%;
         --popover-foreground: 215 25% 15%;
         
-        /* Primary: Professional Indigo for actions and focus */
-        --primary: 239 70% 58%;
+        /* Primary: Brand Blue #0055BE */
+        --primary: 213 100% 37%;
         --primary-foreground: 0 0% 100%;
-        --primary-subtle: 239 60% 95%;
+        --primary-subtle: 213 90% 95%;
         
         /* Secondary: Muted slate for supporting elements */
         --secondary: 215 15% 92%;
@@ -40,8 +40,8 @@ code {
         --muted: 215 15% 95%;
         --muted-foreground: 215 15% 45%;
         
-        --accent: 239 60% 96%;
-        --accent-foreground: 239 70% 40%;
+        --accent: 213 90% 96%;
+        --accent-foreground: 213 100% 30%;
         
         /* Semantic Colors */
         --success: 142 76% 36%;
@@ -58,10 +58,10 @@ code {
         
         --border: 215 15% 88%;
         --input: 215 15% 88%;
-        --ring: 239 70% 58%;
+        --ring: 213 100% 37%;
         
         /* Chart colors - distinct and accessible */
-        --chart-1: 239 70% 58%;
+        --chart-1: 213 100% 37%;
         --chart-2: 142 76% 40%;
         --chart-3: 38 92% 50%;
         --chart-4: 280 65% 58%;
@@ -97,9 +97,9 @@ code {
         --popover: 215 25% 11%;
         --popover-foreground: 210 20% 95%;
         
-        --primary: 239 75% 65%;
+        --primary: 213 90% 55%;
         --primary-foreground: 215 28% 8%;
-        --primary-subtle: 239 50% 15%;
+        --primary-subtle: 213 50% 15%;
         
         --secondary: 215 20% 18%;
         --secondary-foreground: 210 20% 90%;
@@ -107,8 +107,8 @@ code {
         --muted: 215 20% 16%;
         --muted-foreground: 215 15% 60%;
         
-        --accent: 239 50% 20%;
-        --accent-foreground: 239 75% 75%;
+        --accent: 213 50% 20%;
+        --accent-foreground: 213 75% 75%;
         
         --success: 142 70% 45%;
         --success-foreground: 215 28% 8%;
@@ -124,9 +124,9 @@ code {
         
         --border: 215 20% 22%;
         --input: 215 20% 22%;
-        --ring: 239 75% 65%;
+        --ring: 213 90% 55%;
         
-        --chart-1: 239 75% 65%;
+        --chart-1: 213 90% 55%;
         --chart-2: 142 70% 50%;
         --chart-3: 38 90% 60%;
         --chart-4: 280 70% 65%;

@@ -10,6 +10,9 @@ from typing import List
 import uuid
 from datetime import datetime, timezone
 
+# For development Only
+# from fastapi.middleware.cors import CORSMiddleware
+
 # Import all route routers
 from routes.zoho_auth import router as zoho_auth_router
 from routes.zoho_financial import router as zoho_financial_router
@@ -45,17 +48,6 @@ app = FastAPI(
 # Store DB in app state
 app.state.db = db
 
-# ─── CORS — must be added FIRST so it runs as the OUTERMOST middleware layer ──
-# In Starlette, middleware wraps in reverse registration order.
-# Adding CORS first means it executes last on the way in but FIRST on the way out,
-# which is correct — it needs to attach headers to every response including
-# preflight OPTIONS responses that never reach route handlers.
-#
-# FIX: The previous code added RateLimitMiddleware AFTER CORSMiddleware, meaning
-# RateLimit ran before CORS headers were attached. Preflight OPTIONS requests
-# were being processed by RateLimit and returned without CORS headers,
-# causing the browser to block all subsequent requests ("Failed to fetch").
-
 cors_origins_raw = os.environ.get('CORS_ORIGINS', '*')
 
 # Build the allowed origins list
@@ -76,9 +68,18 @@ app.add_middleware(
     max_age=3600,  # Cache preflight for 1 hour
 )
 
+# Only For Development
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],  # allow all
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
 # Rate limiting added AFTER CORS so CORS runs outermost
 # FIX: Also set RATE_LIMIT_ENABLED=false in Vercel env vars since serverless
-# functions don't share in-memory state between invocations anyway
+
 from middleware.rate_limit import RateLimitMiddleware
 app.add_middleware(RateLimitMiddleware)
 

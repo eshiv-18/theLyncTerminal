@@ -7,6 +7,8 @@ from config import get_settings
 from services.razorpay_client import RazorpayClient
 from services.razorpay_metrics_service import RazorpayMetricsService
 import logging
+import os
+
 
 logger = logging.getLogger(__name__)
 
@@ -197,6 +199,9 @@ async def get_payment_metrics(
                 status_code=404,
                 detail="Razorpay not configured for this organization"
             )
+        
+        logger.info(f"DEBUG credentials: key_id={credentials.get('key_id')} secret_len={len(credentials.get('key_secret', ''))}")
+
 
         client = RazorpayClient(
             key_id=credentials["key_id"],
@@ -322,3 +327,59 @@ async def disconnect_razorpay(
         raise HTTPException(status_code=404, detail="No Razorpay configuration found")
 
     return {"status": "success", "message": "Razorpay disconnected successfully"}
+
+# Only for testing in development phase - Eshiv ;)
+
+# @router.get("/test-razorpay")
+# async def test_razorpay():
+#     from services.razorpay_client import RazorpayClient
+
+#     key_id = os.getenv("RAZORPAY_KEY_ID")
+#     key_secret = os.getenv("RAZORPAY_KEY_SECRET")
+
+#     if not key_id or not key_secret:
+#         raise HTTPException(status_code=500, detail="Razorpay env variables not set")
+
+#     client = RazorpayClient(
+#         key_id=key_id,
+#         key_secret=key_secret
+#     )
+    
+#     res = await client.get_payments(count=1)
+#     return res
+    
+@router.post("/create-order")
+async def create_order(
+    organization_id: str,
+    mock: bool = False,  
+    db: AsyncIOMotorDatabase = Depends(get_db)
+):
+    if mock:
+        return {
+            "order_id": "order_mock_12345",
+            "amount": 50000,
+            "currency": "INR"
+        }
+
+    from services.razorpay_client import RazorpayClient
+
+    credentials = await db.razorpay_credentials.find_one({
+        "organization_id": organization_id,
+        "is_active": True
+    })
+
+    if not credentials:
+        raise HTTPException(status_code=404, detail="Razorpay not configured")
+
+    client = RazorpayClient(
+        key_id=credentials["key_id"],
+        key_secret=credentials["key_secret"]
+    )
+
+    order = await client.create_order(amount=50000)
+
+    return {
+        "order_id": order["id"],
+        "amount": order["amount"],
+        "currency": order["currency"]
+    }
